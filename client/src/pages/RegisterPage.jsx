@@ -26,6 +26,7 @@ const RegisterPage = () => {
     loading,
     success,
     currentStep,
+    isUserAuthenticated,
     updateField,
     nextStep,
     prevStep,
@@ -126,12 +127,19 @@ const RegisterPage = () => {
           {renderStepContent()}
         </Paper>
 
+        {/* Alert para usuario autenticado */}
+        {isUserAuthenticated && currentStep === 1 && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Tus datos de propietario se han cargado automáticamente desde tu cuenta
+          </Alert>
+        )}
+
         {/* Navigation Buttons */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
           <Button
             onClick={() => currentStep === 0 ? navigate('/') : prevStep()}
             startIcon={<ArrowBack />}
-            disabled={loading}
+            disabled={loading || (isUserAuthenticated && currentStep > 0)}
           >
             {currentStep === 0 ? 'Cancelar' : 'Anterior'}
           </Button>

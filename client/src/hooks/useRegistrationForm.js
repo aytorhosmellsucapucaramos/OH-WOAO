@@ -172,6 +172,7 @@ export const useRegistrationForm = () => {
     loading,
     success,
     currentStep,
+    isUserAuthenticated,
     updateField,
     nextStep,
     prevStep,

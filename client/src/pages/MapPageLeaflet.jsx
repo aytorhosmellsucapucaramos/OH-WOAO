@@ -41,6 +41,7 @@ import {
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
 import axios from "axios";
+import ReportDetailModal from "../components/features/strayReports/ReportDetailModal";
 
 // Fix for default markers in React Leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -156,6 +157,7 @@ const MapPageLeaflet = () => {
     scared: "#9C27B0",
     playful: "#2196F3",
     calm: "#009688",
+    neutral: "#9E9E9E",
   };
 
   const urgencyColors = {
@@ -169,6 +171,7 @@ const MapPageLeaflet = () => {
     stray: "Callejero",
     lost: "Perdido",
     abandoned: "Abandonado",
+    injured: "Herido",
   };
 
   const sizeLabels = {
@@ -184,6 +187,7 @@ const MapPageLeaflet = () => {
     scared: "Asustado",
     playful: "Juguetón",
     calm: "Tranquilo",
+    neutral: "Neutral",
   };
 
   const urgencyLabels = {
@@ -523,6 +527,7 @@ const MapPageLeaflet = () => {
                     <MenuItem value="stray">Callejero</MenuItem>
                     <MenuItem value="lost">Perdido</MenuItem>
                     <MenuItem value="abandoned">Abandonado</MenuItem>
+                    <MenuItem value="injured">Herido</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
@@ -713,6 +718,14 @@ const MapPageLeaflet = () => {
                                   "linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)",
                                 boxShadow:
                                   "0 3px 5px 2px rgba(33, 203, 243, .3)",
+                                transition: "all 0.3s ease",
+                                '&:hover': {
+                                  transform: "scale(1.05)",
+                                  boxShadow: "0 5px 15px rgba(33, 203, 243, .5)",
+                                },
+                                '&:active': {
+                                  transform: "scale(0.98)",
+                                }
                               }}
                             >
                               <Info sx={{ mr: 0.5, fontSize: 16 }} />
@@ -883,354 +896,12 @@ const MapPageLeaflet = () => {
           </Grid>
         </Grid>
 
-        {/* Dialog de Detalles */}
-        <Dialog
+        {/* Dialog de Detalles usando ReportDetailModal */}
+        <ReportDetailModal
+          report={selectedReport}
           open={detailsModalOpen}
           onClose={() => setDetailsModalOpen(false)}
-          maxWidth="md"
-          fullWidth
-          PaperProps={{
-            sx: {
-              borderRadius: 3,
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-            },
-          }}
-        >
-          {selectedReport && (
-            <>
-              <DialogTitle
-                sx={{
-                  background:
-                    "linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)",
-                  color: "white",
-                  py: 3,
-                }}
-              >
-                <Box
-                  display="flex"
-                  alignItems="center"
-                  justifyContent="space-between"
-                >
-                  <Box display="flex" alignItems="center" gap={2}>
-                    <Avatar
-                      src={selectedReport.photo_path ? `http://localhost:5000/api/uploads/${selectedReport.photo_path}` : selectedReport.photo}
-                      sx={{ width: 50, height: 50 }}
-                    >
-                      <Pets />
-                    </Avatar>
-                    <Box>
-                      <Typography variant="h5" fontWeight="bold">
-                        {selectedReport.breed}
-                      </Typography>
-                      <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                        Reporte #{selectedReport.id} •{" "}
-                        {formatDate(selectedReport.created_at || selectedReport.createdAt)}
-                      </Typography>
-                    </Box>
-                  </Box>
-                  <Button
-                    onClick={() => setDetailsModalOpen(false)}
-                    sx={{
-                      color: "white",
-                      minWidth: "auto",
-                      "&:hover": {
-                        backgroundColor: "rgba(255,255,255,0.1)",
-                      },
-                    }}
-                  >
-                    <Close />
-                  </Button>
-                </Box>
-              </DialogTitle>
-
-              <DialogContent
-                sx={{
-                  background: "linear-gradient(to bottom, #f8f9fa, #ffffff)",
-                  p: 3,
-                }}
-              >
-                <Grid container spacing={3} sx={{ mt: 1 }}>
-                  <Grid item xs={12} md={6}>
-                    <Box
-                      sx={{
-                        position: "relative",
-                        borderRadius: 3,
-                        overflow: "hidden",
-                        boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
-                      }}
-                    >
-                      <img
-                        src={selectedReport.photo_path ? `http://localhost:5000/api/uploads/${selectedReport.photo_path}` : selectedReport.photo || 'https://via.placeholder.com/350x350?text=Sin+Foto'}
-                        alt="Perro reportado"
-                        style={{
-                          width: "100%",
-                          height: "350px",
-                          objectFit: "cover",
-                        }}
-                        onError={(e) => {
-                          e.target.src = 'https://via.placeholder.com/350x350?text=Imagen+No+Disponible';
-                        }}
-                      />
-                      <Box
-                        sx={{
-                          position: "absolute",
-                          top: 12,
-                          right: 12,
-                          display: "flex",
-                          gap: 1,
-                        }}
-                      >
-                        <Chip
-                          label={
-                            urgencyLabels[selectedReport.urgency] ||
-                            selectedReport.urgency
-                          }
-                          sx={{
-                            backgroundColor:
-                              urgencyColors[selectedReport.urgency],
-                            color: "white",
-                            fontWeight: "bold",
-                          }}
-                        />
-                        <Chip
-                          label={conditionLabels[selectedReport.condition]}
-                          sx={{
-                            backgroundColor: "rgba(0,0,0,0.7)",
-                            color: "white",
-                          }}
-                        />
-                      </Box>
-                    </Box>
-                  </Grid>
-
-                  <Grid item xs={12} md={6}>
-                    <Paper
-                      sx={{ p: 2.5, borderRadius: 2, boxShadow: 2, mb: 2 }}
-                    >
-                      <Typography
-                        variant="h6"
-                        gutterBottom
-                        sx={{ fontWeight: "bold", color: "#1976d2", mb: 2 }}
-                      >
-                        🐕 Información del Perro
-                      </Typography>
-
-                      <Box display="flex" flexDirection="column" gap={1.5}>
-                        <Box display="flex" justifyContent="space-between">
-                          <Typography
-                            variant="body2"
-                            color="textSecondary"
-                            fontWeight="bold"
-                          >
-                            Raza:
-                          </Typography>
-                          <Typography variant="body1" fontWeight="600">
-                            {capitalizeText(selectedReport.breed)}
-                          </Typography>
-                        </Box>
-
-                        <Box display="flex" justifyContent="space-between">
-                          <Typography
-                            variant="body2"
-                            color="textSecondary"
-                            fontWeight="bold"
-                          >
-                            Tamaño:
-                          </Typography>
-                          <Chip
-                            label={sizeLabels[selectedReport.size]}
-                            size="small"
-                            color="primary"
-                            variant="outlined"
-                          />
-                        </Box>
-
-                        <Box display="flex" justifyContent="space-between">
-                          <Typography
-                            variant="body2"
-                            color="textSecondary"
-                            fontWeight="bold"
-                          >
-                            Colores:
-                          </Typography>
-                          <Typography variant="body1" fontWeight="600">
-                            {selectedReport.colors
-                              ? selectedReport.colors
-                                  .map((c) => capitalizeText(c))
-                                  .join(", ")
-                              : "No especificado"}
-                          </Typography>
-                        </Box>
-
-                        <Box
-                          display="flex"
-                          justifyContent="space-between"
-                          alignItems="center"
-                        >
-                          <Typography
-                            variant="body2"
-                            color="textSecondary"
-                            fontWeight="bold"
-                          >
-                            Temperamento:
-                          </Typography>
-                          <Chip
-                            label={
-                              temperamentLabels[selectedReport.temperament] ||
-                              capitalizeText(selectedReport.temperament)
-                            }
-                            size="small"
-                            sx={{
-                              backgroundColor:
-                                temperamentColors[selectedReport.temperament],
-                              color: "white",
-                              fontWeight: "bold",
-                            }}
-                          />
-                        </Box>
-                      </Box>
-                    </Paper>
-                  </Grid>
-
-                  <Grid item xs={12} md={6}>
-                    <Paper
-                      sx={{
-                        p: 2.5,
-                        borderRadius: 2,
-                        boxShadow: 2,
-                        height: "100%",
-                      }}
-                    >
-                      <Typography
-                        variant="h6"
-                        gutterBottom
-                        sx={{ fontWeight: "bold", color: "#1976d2", mb: 2 }}
-                      >
-                        📍 Ubicación
-                      </Typography>
-                      <Typography
-                        variant="body1"
-                        gutterBottom
-                        sx={{
-                          display: "flex",
-                          alignItems: "flex-start",
-                          gap: 1,
-                        }}
-                      >
-                        <LocationOn color="error" />
-                        <span>{selectedReport.address}</span>
-                      </Typography>
-                      <Typography
-                        variant="caption"
-                        color="textSecondary"
-                        sx={{ display: "block", mt: 1 }}
-                      >
-                        Coordenadas: {selectedReport.latitude},{" "}
-                        {selectedReport.longitude}
-                      </Typography>
-                      <Button
-                        fullWidth
-                        variant="outlined"
-                        startIcon={<LocationOn />}
-                        href={`https://maps.google.com/?q=${selectedReport.latitude},${selectedReport.longitude}`}
-                        target="_blank"
-                        sx={{ mt: 2 }}
-                      >
-                        Abrir en Google Maps
-                      </Button>
-                    </Paper>
-                  </Grid>
-
-                  <Grid item xs={12} md={6}>
-                    <Paper
-                      sx={{
-                        p: 2.5,
-                        borderRadius: 2,
-                        boxShadow: 2,
-                        height: "100%",
-                      }}
-                    >
-                      <Typography
-                        variant="h6"
-                        gutterBottom
-                        sx={{ fontWeight: "bold", color: "#1976d2", mb: 2 }}
-                      >
-                        👤 Información del Reportante
-                      </Typography>
-                      <Box display="flex" flexDirection="column" gap={1.5}>
-                        <Typography variant="body1">
-                          <strong>Nombre:</strong> {selectedReport.reporterName}
-                        </Typography>
-                        <Typography
-                          variant="body1"
-                          sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                        >
-                          <Phone color="primary" />
-                          {selectedReport.reporterPhone}
-                        </Typography>
-                        <Typography
-                          variant="body1"
-                          sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                        >
-                          <Email color="primary" />
-                          {selectedReport.reporterEmail}
-                        </Typography>
-                      </Box>
-                    </Paper>
-                  </Grid>
-
-                  <Grid item xs={12}>
-                    <Paper
-                      sx={{
-                        p: 2.5,
-                        borderRadius: 2,
-                        boxShadow: 2,
-                        backgroundColor: "#f8f9fa",
-                      }}
-                    >
-                      <Typography
-                        variant="h6"
-                        gutterBottom
-                        sx={{ fontWeight: "bold", color: "#1976d2", mb: 2 }}
-                      >
-                        📝 Descripción
-                      </Typography>
-                      <Typography variant="body1" sx={{ lineHeight: 1.8 }}>
-                        {selectedReport.description}
-                      </Typography>
-                    </Paper>
-                  </Grid>
-                </Grid>
-              </DialogContent>
-
-              <DialogActions
-                sx={{
-                  background: "linear-gradient(to bottom, #ffffff, #f8f9fa)",
-                  p: 3,
-                  gap: 2,
-                }}
-              >
-                <Button
-                  onClick={() => setDetailsModalOpen(false)}
-                  variant="outlined"
-                  size="large"
-                  sx={{ flex: 0.5 }}
-                >
-                  Cerrar
-                </Button>
-                <Button
-                  sx={{ display: "none" }}
-                  href={`https://maps.google.com/?q=${selectedReport.latitude},${selectedReport.longitude}`}
-                  target="_blank"
-                  startIcon={<LocationOn />}
-                  variant="outlined"
-                >
-                  Ver en Google Maps
-                </Button>
-              </DialogActions>
-            </>
-          )}
-        </Dialog>
+        />
       </motion.div>
     </Container>
   );

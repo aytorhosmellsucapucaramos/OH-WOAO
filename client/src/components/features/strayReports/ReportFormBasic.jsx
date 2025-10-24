@@ -13,30 +13,15 @@ import {
 import { Pets, Description, PhotoCamera, CameraAlt, Close } from '@mui/icons-material';
 import { getAllCatalogs } from '../../../services/catalogService';
 
-// Los catálogos de raza y colores se cargan dinámicamente desde la BD
-// Tamaños desde BD también
-const TEMPERAMENTS = [
-  { value: 'friendly', label: '😊 Amigable' },
-  { value: 'neutral', label: '😐 Neutral' },
-  { value: 'aggressive', label: '😠 Agresivo' },
-  { value: 'scared', label: '😰 Asustado' }
-];
-const CONDITIONS = [
-  { value: 'stray', label: 'Callejero' },
-  { value: 'injured', label: 'Herido' },
-  { value: 'lost', label: 'Perdido' }
-];
-const URGENCIES = [
-  { value: 'low', label: '🟢 Baja' },
-  { value: 'normal', label: '🟡 Normal' },
-  { value: 'high', label: '🟠 Alta' },
-  { value: 'emergency', label: '🔴 Emergencia' }
-];
+// Todos los catálogos se cargan dinámicamente desde la BD
 
 const ReportFormBasic = ({ formData, onUpdate, errors }) => {
   const [breeds, setBreeds] = useState([]);
   const [colors, setColors] = useState([]);
   const [sizes, setSizes] = useState([]);
+  const [temperaments, setTemperaments] = useState([]);
+  const [conditions, setConditions] = useState([]);
+  const [urgencies, setUrgencies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [cameraOpen, setCameraOpen] = useState(false);
@@ -52,6 +37,9 @@ const ReportFormBasic = ({ formData, onUpdate, errors }) => {
         setBreeds(catalogs.breeds || []);
         setColors(catalogs.colors || []);
         setSizes(catalogs.sizes || []);
+        setTemperaments(catalogs.temperaments || []);
+        setConditions(catalogs.conditions || []);
+        setUrgencies(catalogs.urgencies || []);
       } catch (error) {
         console.error('Error loading catalogs:', error);
       } finally {
@@ -230,7 +218,7 @@ const ReportFormBasic = ({ formData, onUpdate, errors }) => {
           />
         </Grid>
 
-        {/* Temperamento */}
+        {/* Temperamento - Desde BD */}
         <Grid item xs={12} sm={6}>
           <FormControl fullWidth>
             <InputLabel>Temperamento</InputLabel>
@@ -239,16 +227,16 @@ const ReportFormBasic = ({ formData, onUpdate, errors }) => {
               onChange={(e) => onUpdate('temperament', e.target.value)}
               label="Temperamento"
             >
-              {TEMPERAMENTS.map(temp => (
-                <MenuItem key={temp.value} value={temp.value}>
-                  {temp.label}
+              {temperaments.map(temp => (
+                <MenuItem key={temp.id} value={temp.code}>
+                  {temp.name}
                 </MenuItem>
               ))}
             </Select>
           </FormControl>
         </Grid>
 
-        {/* Condición */}
+        {/* Condición - Desde BD */}
         <Grid item xs={12} sm={6}>
           <FormControl fullWidth>
             <InputLabel>Condición</InputLabel>
@@ -257,16 +245,16 @@ const ReportFormBasic = ({ formData, onUpdate, errors }) => {
               onChange={(e) => onUpdate('condition', e.target.value)}
               label="Condición"
             >
-              {CONDITIONS.map(cond => (
-                <MenuItem key={cond.value} value={cond.value}>
-                  {cond.label}
+              {conditions.map(cond => (
+                <MenuItem key={cond.id} value={cond.code}>
+                  {cond.name}
                 </MenuItem>
               ))}
             </Select>
           </FormControl>
         </Grid>
 
-        {/* Urgencia */}
+        {/* Urgencia - Desde BD */}
         <Grid item xs={12}>
           <FormControl fullWidth>
             <InputLabel>Nivel de Urgencia</InputLabel>
@@ -275,9 +263,9 @@ const ReportFormBasic = ({ formData, onUpdate, errors }) => {
               onChange={(e) => onUpdate('urgency', e.target.value)}
               label="Nivel de Urgencia"
             >
-              {URGENCIES.map(urg => (
-                <MenuItem key={urg.value} value={urg.value}>
-                  {urg.label}
+              {urgencies.map(urg => (
+                <MenuItem key={urg.id} value={urg.code}>
+                  {urg.name}
                 </MenuItem>
               ))}
             </Select>

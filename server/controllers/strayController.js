@@ -21,6 +21,8 @@ exports.create = async (req, res) => {
     
     const {
       reporterName,
+      reporterPhone,
+      reporterEmail,
       latitude,
       longitude,
       address,
@@ -34,6 +36,16 @@ exports.create = async (req, res) => {
       gender,
       description
     } = req.body;
+    
+    // Parse colors if it's a JSON string
+    let parsedColors = colors;
+    if (typeof colors === 'string') {
+      try {
+        parsedColors = JSON.parse(colors);
+      } catch (e) {
+        parsedColors = [];
+      }
+    }
     
     const reporterId = req.user ? req.user.id : null;
     const photoPath = req.file ? req.file.filename : null;
@@ -80,23 +92,36 @@ exports.create = async (req, res) => {
     );
     const conditionId = conditionResult.length > 0 ? conditionResult[0].id : null;
     
+    if (!conditionId) {
+      logger.error('Condition not found', { condition: condition || 'stray' });
+      throw new Error(`Condition '${condition || 'stray'}' not found in database`);
+    }
+    
     // Obtener urgency_level_id
     const [urgencyResult] = await connection.query(
       'SELECT id FROM urgency_levels WHERE code = ? LIMIT 1',
       [urgency || 'normal']
     );
     const urgencyLevelId = urgencyResult.length > 0 ? urgencyResult[0].id : null;
+    
+    if (!urgencyLevelId) {
+      logger.error('Urgency level not found', { urgency: urgency || 'normal' });
+      throw new Error(`Urgency level '${urgency || 'normal'}' not found in database`);
+    }
 
     // Insertar reporte
     const [result] = await connection.query(
       `INSERT INTO stray_reports (
-        reporter_id, reporter_name, latitude, longitude, address, zone,
+        reporter_id, reporter_name, reporter_phone, reporter_email,
+        latitude, longitude, address, zone,
         breed_id, size_id, temperament_id, condition_id, urgency_level_id,
         description, photo_path, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')`,
       [
         reporterId,
         reporterName,
+        reporterPhone || null,
+        reporterEmail || null,
         latitude,
         longitude,
         address || null,
@@ -114,18 +139,40 @@ exports.create = async (req, res) => {
     const reportId = result.insertId;
 
     // Insertar colores en tabla pivote
-    if (colors && Array.isArray(colors) && colors.length > 0) {
-      for (const colorName of colors) {
+    if (parsedColors && Array.isArray(parsedColors) && parsedColors.length > 0) {
+      // Verificar si la columna display_order existe
+      let hasDisplayOrder = false;
+      try {
+        const [columns] = await connection.query(`
+          SELECT COLUMN_NAME 
+          FROM INFORMATION_SCHEMA.COLUMNS 
+          WHERE TABLE_NAME = 'stray_report_colors' 
+          AND COLUMN_NAME = 'display_order'
+        `);
+        hasDisplayOrder = columns.length > 0;
+      } catch (error) {
+        logger.warn('Could not check display_order column', { error: error.message });
+      }
+      
+      for (let i = 0; i < parsedColors.length; i++) {
+        const colorName = parsedColors[i];
         const [colorResult] = await connection.query(
           'SELECT id FROM colors WHERE name = ? LIMIT 1',
           [colorName]
         );
         
         if (colorResult.length > 0) {
-          await connection.query(
-            'INSERT INTO stray_report_colors (stray_report_id, color_id) VALUES (?, ?)',
-            [reportId, colorResult[0].id]
-          );
+          if (hasDisplayOrder) {
+            await connection.query(
+              'INSERT INTO stray_report_colors (stray_report_id, color_id, display_order) VALUES (?, ?, ?)',
+              [reportId, colorResult[0].id, i]
+            );
+          } else {
+            await connection.query(
+              'INSERT INTO stray_report_colors (stray_report_id, color_id) VALUES (?, ?)',
+              [reportId, colorResult[0].id]
+            );
+          }
         }
       }
     }
@@ -200,13 +247,14 @@ exports.getAll = async (req, res) => {
     const offset = (page - 1) * limit;
     const [reports] = await pool.query(
       `SELECT 
-        id, reporter_name, latitude, longitude, address, zone,
+        id, reporter_name, reporter_phone, reporter_email,
+        latitude, longitude, address, zone,
         breed_name as breed, 
         size_code as size, size_name,
         temperament_code as temperament, temperament_name,
         condition_code as \`condition\`, condition_name,
         urgency_code as urgency, urgency_name, urgency_color,
-        description, photo_path, status, created_at
+        colors, description, photo_path, status, created_at
        FROM view_stray_reports_complete 
        WHERE ${whereClause}
        ORDER BY created_at DESC
@@ -244,13 +292,14 @@ exports.getMyReports = async (req, res) => {
     const offset = (page - 1) * limit;
     const [reports] = await pool.query(
       `SELECT 
-        id, reporter_name, latitude, longitude, address, zone,
+        id, reporter_name, reporter_phone, reporter_email,
+        latitude, longitude, address, zone,
         breed_name as breed,
         size_code as size, size_name,
         temperament_code as temperament, temperament_name,
         condition_code as \`condition\`, condition_name,
         urgency_code as urgency, urgency_name, urgency_color,
-        description, photo_path, status, created_at
+        colors, description, photo_path, status, created_at
        FROM view_stray_reports_complete 
        WHERE reporter_id = ?
        ORDER BY created_at DESC

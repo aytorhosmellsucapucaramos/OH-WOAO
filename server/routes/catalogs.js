@@ -99,12 +99,27 @@ router.get('/all', async (req, res) => {
       'SELECT id, code, name, description FROM sizes ORDER BY id ASC'
     );
     
+    const [temperaments] = await pool.query(
+      'SELECT id, code, name, description FROM temperaments WHERE active = 1 ORDER BY id ASC'
+    );
+    
+    const [conditions] = await pool.query(
+      'SELECT id, code, name, description FROM report_conditions WHERE active = 1 ORDER BY id ASC'
+    );
+    
+    const [urgencies] = await pool.query(
+      'SELECT id, code, name, description, color, priority FROM urgency_levels WHERE active = 1 ORDER BY priority ASC'
+    );
+    
     res.json({
       success: true,
       data: {
         breeds,
         colors,
-        sizes
+        sizes,
+        temperaments,
+        conditions,
+        urgencies
       }
     });
   } catch (error) {

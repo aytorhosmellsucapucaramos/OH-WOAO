@@ -7,7 +7,8 @@ import React, { useState, useEffect } from 'react';
 import {
   Grid, TextField, FormControl, InputLabel, Select, MenuItem,
   Typography, Box, RadioGroup, FormControlLabel, Radio, Dialog,
-  DialogTitle, DialogContent, DialogActions, Button, Alert, CircularProgress
+  DialogTitle, DialogContent, DialogActions, Button, Alert, CircularProgress,
+  Autocomplete
 } from '@mui/material';
 import { Pets } from '@mui/icons-material';
 import { getAllCatalogs } from '../../../services/catalogService';
@@ -133,19 +134,34 @@ const PetInfoForm = ({ formData, onUpdate, errors }) => {
         </Grid>
 
         <Grid item xs={12} sm={6}>
-          <FormControl fullWidth required error={!!errors.breed}>
-            <InputLabel>Raza</InputLabel>
-            <Select
-              value={showOtherBreed ? 'Otro' : formData.breed}
-              onChange={(e) => handleBreedChange(e.target.value)}
-              label="Raza"
-            >
-              {breeds.map(breed => (
-                <MenuItem key={breed.id} value={breed.name}>{breed.name}</MenuItem>
-              ))}
-            </Select>
-            {errors.breed && <Typography variant="caption" color="error">{errors.breed}</Typography>}
-          </FormControl>
+          <Autocomplete
+            options={breeds}
+            getOptionLabel={(option) => option.name || option}
+            value={breeds.find(b => b.name === formData.breed) || null}
+            onChange={(event, newValue) => {
+              if (newValue) {
+                handleBreedChange(newValue.name);
+              } else {
+                onUpdate('breed', '');
+              }
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Raza"
+                required
+                error={!!errors.breed}
+                helperText={errors.breed}
+                placeholder="Buscar raza..."
+              />
+            )}
+            freeSolo
+            onInputChange={(event, newInputValue) => {
+              if (event?.type === 'change') {
+                onUpdate('breed', newInputValue);
+              }
+            }}
+          />
         </Grid>
 
         {showOtherBreed && (
@@ -163,36 +179,56 @@ const PetInfoForm = ({ formData, onUpdate, errors }) => {
         )}
 
         <Grid item xs={12} sm={6}>
-          <FormControl fullWidth>
-            <InputLabel>Tamaño</InputLabel>
-            <Select
-              value={formData.size}
-              onChange={(e) => onUpdate('size', e.target.value)}
-              label="Tamaño"
-            >
-              {sizes.map(size => (
-                <MenuItem key={size.id} value={size.code}>
-                  {size.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <Autocomplete
+            options={sizes}
+            getOptionLabel={(option) => option.name || option}
+            value={sizes.find(s => s.code === formData.size) || null}
+            onChange={(event, newValue) => {
+              if (newValue) {
+                onUpdate('size', newValue.code);
+              } else {
+                onUpdate('size', '');
+              }
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Tamaño"
+                placeholder="Seleccionar tamaño..."
+              />
+            )}
+          />
         </Grid>
 
         <Grid item xs={12} sm={6}>
-          <FormControl fullWidth required error={!!errors.color}>
-            <InputLabel>Color del Can</InputLabel>
-            <Select
-              value={showOtherColor ? 'Otro' : formData.color}
-              onChange={(e) => handleColorChange(e.target.value)}
-              label="Color del Can"
-            >
-              {colors.map(color => (
-                <MenuItem key={color.id} value={color.name}>{color.name}</MenuItem>
-              ))}
-            </Select>
-            {errors.color && <Typography variant="caption" color="error">{errors.color}</Typography>}
-          </FormControl>
+          <Autocomplete
+            options={colors}
+            getOptionLabel={(option) => option.name || option}
+            value={colors.find(c => c.name === formData.color) || null}
+            onChange={(event, newValue) => {
+              if (newValue) {
+                handleColorChange(newValue.name);
+              } else {
+                onUpdate('color', '');
+              }
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Color del Can"
+                required
+                error={!!errors.color}
+                helperText={errors.color}
+                placeholder="Buscar color..."
+              />
+            )}
+            freeSolo
+            onInputChange={(event, newInputValue) => {
+              if (event?.type === 'change') {
+                onUpdate('color', newInputValue);
+              }
+            }}
+          />
         </Grid>
 
         {showOtherColor && (

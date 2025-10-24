@@ -443,13 +443,17 @@ SELECT
     ul.name as urgency_name,
     ul.code as urgency_code,
     ul.color as urgency_color,
-    ul.priority as urgency_priority
+    ul.priority as urgency_priority,
+    GROUP_CONCAT(c.name ORDER BY src.display_order SEPARATOR ', ') as colors
 FROM stray_reports sr
 LEFT JOIN breeds b ON sr.breed_id = b.id
 LEFT JOIN sizes s ON sr.size_id = s.id
 LEFT JOIN temperaments t ON sr.temperament_id = t.id
 LEFT JOIN report_conditions rc ON sr.condition_id = rc.id
-LEFT JOIN urgency_levels ul ON sr.urgency_level_id = ul.id;
+LEFT JOIN urgency_levels ul ON sr.urgency_level_id = ul.id
+LEFT JOIN stray_report_colors src ON sr.id = src.stray_report_id
+LEFT JOIN colors c ON src.color_id = c.id
+GROUP BY sr.id;
 
 -- =====================================================
 -- TRIGGERS Y PROCEDIMIENTOS ALMACENADOS
