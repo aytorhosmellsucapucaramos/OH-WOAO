@@ -149,11 +149,15 @@ const UserDashboard = () => {
       });
 
       if (response.data.success) {
-        setPets(response.data.pets);
+        // Asegurar que pets siempre sea un array
+        setPets(Array.isArray(response.data.pets) ? response.data.pets : []);
+      } else {
+        setPets([]);
       }
     } catch (err) {
       console.error('Error fetching pets:', err);
       setError('Error al cargar las mascotas');
+      setPets([]); // Asegurar array vacío en caso de error
     } finally {
       setLoading(false);
     }
@@ -263,11 +267,12 @@ const UserDashboard = () => {
     }
   };
 
-  // Pagination logic
+  // Pagination logic - verificar que pets esté definido
+  const safePets = pets || [];
   const indexOfLastPet = currentPage * petsPerPage;
   const indexOfFirstPet = indexOfLastPet - petsPerPage;
-  const currentPets = pets.slice(indexOfFirstPet, indexOfLastPet);
-  const totalPages = Math.ceil(pets.length / petsPerPage);
+  const currentPets = safePets.slice(indexOfFirstPet, indexOfLastPet);
+  const totalPages = Math.ceil(safePets.length / petsPerPage);
 
   const handlePageChange = (event, value) => {
     setCurrentPage(value);
@@ -525,7 +530,7 @@ const UserDashboard = () => {
                       Mascotas Registradas
                     </Typography>
                     <Typography variant="h4" sx={{ color: '#1e293b', fontWeight: 700 }}>
-                      {pets.length}
+                      {safePets.length}
                     </Typography>
                   </Box>
                 </Box>
@@ -553,7 +558,7 @@ const UserDashboard = () => {
                       Con Vacunas
                     </Typography>
                     <Typography variant="h4" sx={{ color: '#1e293b', fontWeight: 700 }}>
-                      {pets.filter(p => p.has_vaccination_card).length}
+                      {safePets.filter(p => p.has_vaccination_card).length}
                     </Typography>
                   </Box>
                 </Box>
@@ -581,7 +586,7 @@ const UserDashboard = () => {
                       Carnets Impresos
                     </Typography>
                     <Typography variant="h4" sx={{ color: '#1e293b', fontWeight: 700 }}>
-                      {pets.filter(p => p.card_printed).length}
+                      {safePets.filter(p => p.card_printed).length}
                     </Typography>
                   </Box>
                 </Box>
@@ -663,30 +668,29 @@ const UserDashboard = () => {
                     height: '200px', 
                     overflow: 'hidden',
                     position: 'relative',
-                    backgroundColor: '#f5f5f5'
+                    backgroundColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
                   }}>
-                    {pet.photo_frontal_path ? (
+                    {(pet.photo_frontal_path || pet.photo_path) ? (
                       <CardMedia
                         component="img"
                         height="200"
-                        image={`http://localhost:5000/api/uploads/${pet.photo_frontal_path}`}
+                        image={`http://localhost:5000/api/uploads/${pet.photo_frontal_path || pet.photo_path}`}
                         alt={pet.pet_name}
                         sx={{ 
                           objectFit: 'cover',
                           width: '100%',
                           height: '100%'
                         }}
-                      />
-                    ) : pet.photo_path ? (
-                      <CardMedia
-                        component="img"
-                        height="200"
-                        image={`http://localhost:5000/api/uploads/${pet.photo_path}`}
-                        alt={pet.pet_name}
-                        sx={{ 
-                          objectFit: 'cover',
-                          width: '100%',
-                          height: '100%'
+                        onError={(e) => {
+                          // Si la imagen no carga, mostrar el placeholder
+                          e.target.style.display = 'none';
+                          e.target.parentElement.innerHTML = `
+                            <div style="display: flex; align-items: center; justify-content: center; height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                              <svg style="width: 60px; height: 60px; color: white;" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
+                              </svg>
+                            </div>
+                          `;
                         }}
                       />
                     ) : (
@@ -695,9 +699,9 @@ const UserDashboard = () => {
                         alignItems: 'center',
                         justifyContent: 'center',
                         height: '100%',
-                        backgroundColor: '#e0e0e0'
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
                       }}>
-                        <Pets sx={{ fontSize: 60, color: '#9e9e9e' }} />
+                        <Pets sx={{ fontSize: 60, color: 'white' }} />
                       </Box>
                     )}
                     {/* Badge en la esquina */}
@@ -802,7 +806,7 @@ const UserDashboard = () => {
         )}
 
         {/* No pets message */}
-        {pets.length === 0 && (
+        {safePets.length === 0 && (
           <Paper sx={{ p: 4, textAlign: 'center', mt: 4 }}>
             <Pets sx={{ fontSize: 80, color: 'text.secondary', mb: 2 }} />
             <Typography variant="h5" gutterBottom>

@@ -65,11 +65,11 @@ const uploadSingle = (fieldName) => upload.single(fieldName);
  */
 const uploadMultiple = upload.fields([
   { name: 'photo', maxCount: 1 },
-  { name: 'photoLateral', maxCount: 1 },
-  { name: 'photoFrontal', maxCount: 1 },
+  { name: 'photoFront', maxCount: 1 },
+  { name: 'photoSide', maxCount: 1 },
   { name: 'dniPhoto', maxCount: 1 },
   { name: 'vaccinationCard', maxCount: 1 },
-  { name: 'rabiesVaccine', maxCount: 1 }
+  { name: 'rabiesVaccineCard', maxCount: 1 }
 ]);
 
 /**

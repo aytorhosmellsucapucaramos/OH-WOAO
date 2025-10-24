@@ -11,6 +11,7 @@ const petsController = require('../controllers/petsController');
 const { uploadLimiter, searchLimiter } = require('../config/security');
 const { optionalAuth } = require('../middleware/auth');
 const { validate, validateQuery, registerSchema, searchSchema } = require('../middleware/validation');
+const { cacheMiddleware } = require('../config/cache');
 
 // Multer configuration for file uploads
 const uploadsDir = path.join(__dirname, '../uploads');
@@ -41,11 +42,11 @@ const upload = multer({
 // Configure multer for multiple file uploads
 const uploadMultiple = upload.fields([
   { name: 'photo', maxCount: 1 },
-  { name: 'photoLateral', maxCount: 1 },
-  { name: 'photoFrontal', maxCount: 1 },
+  { name: 'photoFront', maxCount: 1 },
+  { name: 'photoSide', maxCount: 1 },
   { name: 'dniPhoto', maxCount: 1 },
   { name: 'vaccinationCard', maxCount: 1 },
-  { name: 'rabiesVaccine', maxCount: 1 }
+  { name: 'rabiesVaccineCard', maxCount: 1 }
 ]);
 
 /**
@@ -63,33 +64,36 @@ router.post('/register',
 
 /**
  * @route   GET /api/pets
- * @desc    Get all pets with pagination
+ * @desc    Get all pets with pagination (with cache)
  * @access  Public
  * @query   page - Page number (default: 1)
  * @query   limit - Items per page (default: 20)
  */
 router.get('/pets', 
+  cacheMiddleware('pets_list', 600), // Cache 10 minutos
   petsController.getAll
 );
 
 /**
  * @route   GET /api/search
- * @desc    Search pets by DNI or CUI
+ * @desc    Search pets by DNI or CUI (with cache)
  * @access  Public
  * @query   q - Search query (DNI or CUI)
  */
 router.get('/search', 
-  searchLimiter, 
+  searchLimiter,
+  cacheMiddleware('pet_search', 300), // Cache 5 minutos
   validateQuery(searchSchema), 
   petsController.search
 );
 
 /**
  * @route   GET /api/pet/:cui
- * @desc    Get specific pet by CUI
+ * @desc    Get specific pet by CUI (with cache)
  * @access  Public
  */
-router.get('/pet/:cui', 
+router.get('/pet/:cui',
+  cacheMiddleware('pet_detail', 600), // Cache 10 minutos
   petsController.getByCUI
 );
 

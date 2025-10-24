@@ -114,10 +114,10 @@ async function registerPet(petData, files, adopterId) {
     const qrCodeFilename = await qrService.generateQRCode(cui, uploadsDir);
     
     // Handle file uploads
-    const photoFrontalPath = files?.photoFrontal?.[0]?.filename || null;
-    const photoPosteriorPath = files?.photoPosterior?.[0]?.filename || null;
+    const photoFrontalPath = files?.photoFront?.[0]?.filename || null;
+    const photoPosteriorPath = files?.photoSide?.[0]?.filename || null;
     const vaccinationCardPath = files?.vaccinationCard?.[0]?.filename || null;
-    const rabiesVaccinePath = files?.rabiesVaccine?.[0]?.filename || null;
+    const rabiesVaccinePath = files?.rabiesVaccineCard?.[0]?.filename || null;
     
     // Insert documents (photos and QR)
     await connection.query(
@@ -126,9 +126,9 @@ async function registerPet(petData, files, adopterId) {
       [petId, photoFrontalPath, photoPosteriorPath, qrCodeFilename, false]
     );
     
-    // Convert boolean values
-    const hasVaccCard = hasVaccinationCard === 'si';
-    const hasRabiesVac = hasRabiesVaccine === 'si';
+    // Convert boolean values (acepta 'yes', 'si', 'true', true)
+    const hasVaccCard = hasVaccinationCard === 'yes' || hasVaccinationCard === 'si' || hasVaccinationCard === true || hasVaccinationCard === 'true';
+    const hasRabiesVac = hasRabiesVaccine === 'yes' || hasRabiesVaccine === 'si' || hasRabiesVaccine === true || hasRabiesVaccine === 'true';
     
     // Insert health records
     await connection.query(

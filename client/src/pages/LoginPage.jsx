@@ -1,67 +1,30 @@
-import React, { useState } from 'react';
+/**
+ * LoginPage - REFACTORIZADO
+ * Página de login simplificada usando hooks y componentes
+ */
+
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Container, Typography, Card, CardContent, TextField, Button,
-  Box, Alert, CircularProgress, InputAdornment, IconButton,
-  Link, Divider
+  Container, Typography, Card, CardContent, Button,
+  Box, Divider
 } from '@mui/material';
-import { Email, Lock, Visibility, VisibilityOff, Login, PersonAdd } from '@mui/icons-material';
+import { PersonAdd } from '@mui/icons-material';
 import { motion } from 'framer-motion';
-import axios from 'axios';
+import { useAuth } from '../hooks/useAuth';
+import LoginForm from '../components/features/auth/LoginForm';
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    email: '',
-    password: ''
-  });
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const { login, loading, error } = useAuth();
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    setError(''); // Clear error on input change
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    try {
-      const response = await axios.post('http://localhost:5000/api/auth/login', formData);
-      
-      if (response.data.success) {
-        // Store auth data
-        localStorage.setItem('authToken', response.data.token);
-        localStorage.setItem('userEmail', response.data.user.email);
-        localStorage.setItem('userId', response.data.user.id);
-        localStorage.setItem('userFullName', response.data.user.fullName);
-        localStorage.setItem('userDNI', response.data.user.dni);
-        localStorage.setItem('userRole', response.data.user.role || 'user');
-        
-        // Store CUI if user has pets registered
-        if (response.data.user.cui) {
-          localStorage.setItem('userCUI', response.data.user.cui);
-        }
-        
-        // Redirección automática según rol
-        if (response.data.user.role === 'admin') {
-          navigate('/admin/dashboard');
-        } else {
-          navigate('/dashboard');
-        }
-      }
-    } catch (err) {
-      console.error('Login error:', err);
-      setError(err.response?.data?.error || 'Error al iniciar sesión');
-    } finally {
-      setLoading(false);
+  const handleLogin = async (email, password) => {
+    const result = await login(email, password);
+    
+    if (result.success) {
+      // Redirección según rol
+      const userRole = result.data.user.role;
+      navigate(userRole === 'admin' ? '/admin/dashboard' : '/dashboard');
     }
   };
 
@@ -72,7 +35,7 @@ const LoginPage = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        {/* Header mejorado */}
+        {/* Header */}
         <Box sx={{ 
           display: 'flex', 
           flexDirection: 'column',
@@ -81,7 +44,8 @@ const LoginPage = () => {
           gap: 2
         }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Box component="img" 
+            <Box 
+              component="img" 
               src="/images/logos/Logo Escudo MPP.png" 
               alt="Escudo MPP" 
               sx={{ 
@@ -90,131 +54,44 @@ const LoginPage = () => {
                 filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.3))'
               }} 
             />
-            <Box component="img" 
+            <Box 
+              component="img" 
               src="/images/logos/Logo Escudo MPP letra.png" 
               alt="Municipalidad de Puno" 
-              sx={{ 
-                height: 80, 
-                width: 'auto',
-                filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.3))'
-              }} 
+              sx={{ height: 80, width: 'auto' }} 
             />
           </Box>
+
           <Typography 
-            variant="h3" 
-            textAlign="center" 
+            variant="h4" 
             sx={{ 
-              color: '#1e293b', 
-              fontWeight: 700,
-              letterSpacing: '-0.5px',
-              mb: 1
+              fontWeight: 700, 
+              color: '#1e293b',
+              textAlign: 'center'
             }}
           >
             Iniciar Sesión
           </Typography>
-          <Typography 
-            variant="subtitle1" 
-            textAlign="center" 
-            sx={{ 
-              color: '#64748b', 
-              fontWeight: 400,
-            }}
-          >
-            Sistema de Registro Municipal de Mascotas
+          <Typography variant="body1" color="text.secondary" textAlign="center">
+            Accede a tu cuenta del Sistema de Registro de Mascotas
           </Typography>
         </Box>
 
+        {/* Login Card */}
         <Card 
+          elevation={0} 
           sx={{ 
-            background: '#ffffff',
+            boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
             border: '1px solid #e5e7eb',
-            borderRadius: 3,
-            boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-            overflow: 'hidden'
+            borderRadius: 3
           }}
         >
           <CardContent sx={{ p: 4 }}>
-            {error && (
-              <Alert severity="error" sx={{ mb: 3 }}>
-                {error}
-              </Alert>
-            )}
-
-            <form onSubmit={handleSubmit}>
-              <Box sx={{ mb: 3 }}>
-                <TextField
-                  fullWidth
-                  label="Email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  required
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Email sx={{ color: 'action.active' }} />
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-              </Box>
-
-              <Box sx={{ mb: 3 }}>
-                <TextField
-                  fullWidth
-                  label="Contraseña"
-                  name="password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="current-password"
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  required
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Lock sx={{ color: 'action.active' }} />
-                      </InputAdornment>
-                    ),
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <IconButton
-                          onClick={() => setShowPassword(!showPassword)}
-                          edge="end"
-                        >
-                          {showPassword ? <VisibilityOff /> : <Visibility />}
-                        </IconButton>
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-              </Box>
-
-              <Button
-                type="submit"
-                fullWidth
-                variant="contained"
-                size="large"
-                disabled={loading}
-                startIcon={!loading && <Login />}
-                sx={{
-                  background: '#2563eb',
-                  py: 1.5,
-                  fontSize: '1rem',
-                  fontWeight: 600,
-                  mb: 2,
-                  textTransform: 'none',
-                  boxShadow: 'none',
-                  '&:hover': {
-                    background: '#1d4ed8',
-                    boxShadow: '0 2px 8px rgba(37, 99, 235, 0.3)',
-                  },
-                }}
-              >
-                {loading ? <CircularProgress size={24} color="inherit" /> : 'Iniciar Sesión'}
-              </Button>
-            </form>
+            <LoginForm 
+              onSubmit={handleLogin}
+              loading={loading}
+              error={error}
+            />
 
             <Divider sx={{ my: 3 }}>O</Divider>
 
@@ -226,6 +103,7 @@ const LoginPage = () => {
                 variant="outlined"
                 startIcon={<PersonAdd />}
                 onClick={() => navigate('/register')}
+                fullWidth
                 sx={{ 
                   textTransform: 'none',
                   borderColor: '#2563eb',
@@ -240,7 +118,15 @@ const LoginPage = () => {
               </Button>
             </Box>
 
-            <Box sx={{ mt: 3, p: 2, backgroundColor: '#f8fafc', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+            <Box 
+              sx={{ 
+                mt: 3, 
+                p: 2, 
+                backgroundColor: '#f8fafc', 
+                borderRadius: 2, 
+                border: '1px solid #e5e7eb' 
+              }}
+            >
               <Typography variant="body2" color="text.secondary" textAlign="center">
                 <strong>Nota:</strong> Para registrarte, primero debes registrar una mascota. 
                 Tu cuenta se creará automáticamente con los datos del propietario.

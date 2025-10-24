@@ -37,9 +37,6 @@ const ProtectedRoute = ({ children }) => {
             <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
               Debes iniciar sesión para acceder a esta sección.
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Si aún no tienes cuenta, primero registra una mascota.
-            </Typography>
             <Button
               variant="contained"
               startIcon={<Login />}

@@ -60,8 +60,21 @@ function sendPaginated(res, data, pagination) {
   });
 }
 
+/**
+ * Send unauthorized response (401)
+ * @param {object} res - Express response object
+ * @param {string} error - Error message
+ */
+function sendUnauthorized(res, error = 'No autorizado') {
+  res.status(401).json({
+    success: false,
+    error
+  });
+}
+
 module.exports = {
   sendSuccess,
   sendError,
-  sendPaginated
+  sendPaginated,
+  sendUnauthorized
 };

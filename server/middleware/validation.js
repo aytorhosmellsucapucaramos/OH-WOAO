@@ -6,49 +6,42 @@ const Joi = require('joi');
 
 // Validación para registro de usuario/mascota
 const registerSchema = Joi.object({
-  // Datos del propietario
-  firstName: Joi.string().min(2).max(50).trim().required()
+  // Datos del propietario - opcionales si el usuario ya está autenticado
+  firstName: Joi.string().min(2).max(50).trim().allow('', null).optional()
     .messages({
-      'string.empty': 'El nombre es requerido',
       'string.min': 'El nombre debe tener al menos 2 caracteres',
       'string.max': 'El nombre no puede exceder 50 caracteres'
     }),
   
-  lastName: Joi.string().min(2).max(50).trim().required()
+  lastName: Joi.string().min(2).max(50).trim().allow('', null).optional()
     .messages({
-      'string.empty': 'El apellido es requerido',
       'string.min': 'El apellido debe tener al menos 2 caracteres',
       'string.max': 'El apellido no puede exceder 50 caracteres'
     }),
   
-  dni: Joi.string().pattern(/^\d{8}$/).required()
+  dni: Joi.string().pattern(/^\d{8}$/).allow('', null).optional()
     .messages({
-      'string.pattern.base': 'El DNI debe tener exactamente 8 dígitos',
-      'string.empty': 'El DNI es requerido'
+      'string.pattern.base': 'El DNI debe tener exactamente 8 dígitos'
     }),
   
-  email: Joi.string().email().lowercase().trim().required()
+  email: Joi.string().email().lowercase().trim().allow('', null).optional()
     .messages({
-      'string.email': 'El email debe ser válido',
-      'string.empty': 'El email es requerido'
+      'string.email': 'El email debe ser válido'
     }),
   
-  password: Joi.string().min(6).max(100).required()
+  password: Joi.string().min(6).max(100).allow('', null).optional()
     .messages({
-      'string.min': 'La contraseña debe tener al menos 6 caracteres',
-      'string.empty': 'La contraseña es requerida'
+      'string.min': 'La contraseña debe tener al menos 6 caracteres'
     }),
   
-  phone: Joi.string().pattern(/^\d{9}$/).required()
+  phone: Joi.string().pattern(/^\d{9}$/).allow('', null).optional()
     .messages({
-      'string.pattern.base': 'El teléfono debe tener 9 dígitos',
-      'string.empty': 'El teléfono es requerido'
+      'string.pattern.base': 'El teléfono debe tener 9 dígitos'
     }),
   
-  address: Joi.string().min(10).max(255).trim().required()
+  address: Joi.string().min(10).max(255).trim().allow('', null).optional()
     .messages({
-      'string.min': 'La dirección debe tener al menos 10 caracteres',
-      'string.empty': 'La dirección es requerida'
+      'string.min': 'La dirección debe tener al menos 10 caracteres'
     }),
 
   // Datos de la mascota
@@ -135,12 +128,13 @@ const strayReportSchema = Joi.object({
       'string.empty': 'El nombre del reportante es requerido'
     }),
   
-  reporterPhone: Joi.string().pattern(/^\d{9}$/).required()
+  // Opcionales si el usuario está autenticado
+  reporterPhone: Joi.string().pattern(/^\d{9}$/).allow('', null).optional()
     .messages({
       'string.pattern.base': 'El teléfono debe tener 9 dígitos'
     }),
   
-  reporterEmail: Joi.string().email().lowercase().trim().required()
+  reporterEmail: Joi.string().email().lowercase().trim().allow('', null).optional()
     .messages({
       'string.email': 'El email debe ser válido'
     }),
@@ -164,13 +158,25 @@ const strayReportSchema = Joi.object({
   
   breed: Joi.string().max(100).allow('').optional(),
   size: Joi.string().valid('small', 'medium', 'large').required(),
-  temperament: Joi.string().valid('friendly', 'shy', 'aggressive', 'scared', 'playful', 'calm').required(),
-  condition_type: Joi.string().valid('stray', 'lost', 'abandoned').required(),
-  urgency_level: Joi.string().valid('low', 'normal', 'high', 'emergency').required(),
   
-  description: Joi.string().min(10).max(1000).trim().required()
+  // Aceptar tanto temperament como neutral
+  temperament: Joi.string().valid('friendly', 'neutral', 'shy', 'aggressive', 'scared', 'playful', 'calm').allow('', null).optional(),
+  
+  // Aceptar condition y condition_type
+  condition: Joi.string().valid('stray', 'lost', 'abandoned', 'injured').allow('', null).optional(),
+  condition_type: Joi.string().valid('stray', 'lost', 'abandoned', 'injured').allow('', null).optional(),
+  
+  // Aceptar urgency y urgency_level
+  urgency: Joi.string().valid('low', 'normal', 'high', 'emergency').allow('', null).optional(),
+  urgency_level: Joi.string().valid('low', 'normal', 'high', 'emergency').allow('', null).optional(),
+  
+  // Género opcional
+  gender: Joi.string().valid('male', 'female', 'unknown').allow('', null).optional(),
+  
+  // Descripción opcional
+  description: Joi.string().max(1000).trim().allow('', null).optional()
     .messages({
-      'string.min': 'La descripción debe tener al menos 10 caracteres'
+      'string.max': 'La descripción no puede exceder 1000 caracteres'
     }),
   
   colors: Joi.alternatives().try(
@@ -194,18 +200,24 @@ const validate = (schema) => {
 
     if (error) {
       const errors = error.details.map(detail => ({
-        field: detail.path.join('.'),
+        field: detail.path[0],
         message: detail.message
       }));
 
+      console.log('❌ Error de validación:', {
+        body: req.body,
+        errors: errors
+      });
+
       return res.status(400).json({
         success: false,
-        error: 'Error de validación',
-        errors: errors
+        error: 'Error de validación: ' + errors.map(e => e.message).join(', '),
+        message: 'Por favor verifica los campos del formulario',
+        details: errors
       });
     }
 
-    // Reemplaza req.body con los valores validados y sanitizados
+    // Reemplazar req.body con los valores validados y sanitizados
     req.body = value;
     next();
   };

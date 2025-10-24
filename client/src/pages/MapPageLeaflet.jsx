@@ -334,7 +334,7 @@ const MapPageLeaflet = () => {
     if (filters.showOnlyRecent) {
       const oneDayAgo = new Date(Date.now() - 86400000);
       filtered = filtered.filter(
-        (report) => new Date(report.createdAt) > oneDayAgo
+        (report) => new Date(report.created_at || report.createdAt) > oneDayAgo
       );
     }
 
@@ -349,14 +349,27 @@ const MapPageLeaflet = () => {
   };
 
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("es-ES", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    if (!dateString) return 'Fecha no disponible';
+    
+    try {
+      const date = new Date(dateString);
+      
+      // Verificar si la fecha es válida
+      if (isNaN(date.getTime())) {
+        return 'Fecha inválida';
+      }
+      
+      return date.toLocaleDateString("es-ES", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch (error) {
+      console.error('Error formateando fecha:', error);
+      return 'Fecha inválida';
+    }
   };
 
   const getDistanceFromUser = (lat, lng) => {
@@ -641,7 +654,7 @@ const MapPageLeaflet = () => {
                               }}
                             >
                               <Avatar
-                                src={report.photo}
+                                src={report.photo_path ? `http://localhost:5000/api/uploads/${report.photo_path}` : report.photo}
                                 sx={{ width: 50, height: 50 }}
                               >
                                 <Pets />
@@ -773,7 +786,7 @@ const MapPageLeaflet = () => {
                     <CardContent>
                       <Box display="flex" alignItems="center" mb={2}>
                         <Avatar
-                          src={report.photo}
+                          src={report.photo_path ? `http://localhost:5000/api/uploads/${report.photo_path}` : report.photo}
                           sx={{ width: 50, height: 50, mr: 2 }}
                         >
                           <Pets />
@@ -860,7 +873,7 @@ const MapPageLeaflet = () => {
                         }}
                       >
                         <AccessTime sx={{ fontSize: 14, mr: 0.5 }} />
-                        Reportado: {formatDate(report.createdAt)}
+                        Reportado: {formatDate(report.created_at || report.createdAt)}
                       </Typography>
                     </CardContent>
                   </Card>
@@ -900,7 +913,7 @@ const MapPageLeaflet = () => {
                 >
                   <Box display="flex" alignItems="center" gap={2}>
                     <Avatar
-                      src={selectedReport.photo}
+                      src={selectedReport.photo_path ? `http://localhost:5000/api/uploads/${selectedReport.photo_path}` : selectedReport.photo}
                       sx={{ width: 50, height: 50 }}
                     >
                       <Pets />
@@ -911,7 +924,7 @@ const MapPageLeaflet = () => {
                       </Typography>
                       <Typography variant="body2" sx={{ opacity: 0.9 }}>
                         Reporte #{selectedReport.id} •{" "}
-                        {formatDate(selectedReport.createdAt)}
+                        {formatDate(selectedReport.created_at || selectedReport.createdAt)}
                       </Typography>
                     </Box>
                   </Box>
@@ -947,12 +960,15 @@ const MapPageLeaflet = () => {
                       }}
                     >
                       <img
-                        src={selectedReport.photo}
+                        src={selectedReport.photo_path ? `http://localhost:5000/api/uploads/${selectedReport.photo_path}` : selectedReport.photo || 'https://via.placeholder.com/350x350?text=Sin+Foto'}
                         alt="Perro reportado"
                         style={{
                           width: "100%",
                           height: "350px",
                           objectFit: "cover",
+                        }}
+                        onError={(e) => {
+                          e.target.src = 'https://via.placeholder.com/350x350?text=Imagen+No+Disponible';
                         }}
                       />
                       <Box
