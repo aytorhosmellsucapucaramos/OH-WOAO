@@ -1,5 +1,6 @@
 // API Configuration
-export const API_BASE_URL = 'http://localhost:5001'
+// Usa variable de entorno VITE_API_URL si está disponible, sino localhost
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001'
 
 // API Endpoints
 export const API_ENDPOINTS = {

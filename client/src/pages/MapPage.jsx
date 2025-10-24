@@ -1,21 +1,26 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   Container, Typography, Box, Card, CardContent, Chip, Avatar,
   FormControl, InputLabel, Select, MenuItem, Switch, FormControlLabel,
   Paper, Grid, Button, Dialog, DialogTitle, DialogContent, DialogActions,
-  Fab, Alert
+  Fab, Alert, Badge, Zoom, Fade, Slide
 } from '@mui/material'
 import {
   LocationOn, Pets, FilterList, Visibility, Phone, Email,
-  Warning, AccessTime, Info, Close
+  Warning, AccessTime, Info, Close, Navigation, Star,
+  FiberManualRecord, RadioButtonChecked
 } from '@mui/icons-material'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import axios from 'axios'
 
 const MapPage = () => {
   const [strayReports, setStrayReports] = useState([])
   const [filteredReports, setFilteredReports] = useState([])
   const [selectedReport, setSelectedReport] = useState(null)
+  const [hoveredReport, setHoveredReport] = useState(null)
+  const [selectedMarkerId, setSelectedMarkerId] = useState(null)
+  const [animateMarkers, setAnimateMarkers] = useState(false)
+  const mapRef = useRef(null)
   const [filters, setFilters] = useState({
     urgency: 'all',
     condition: 'all',
@@ -123,8 +128,17 @@ const MapPage = () => {
     applyFilters()
   }, [strayReports, filters])
 
+  useEffect(() => {
+    // Activar animación de marcadores después de cargar
+    if (filteredReports.length > 0) {
+      const timer = setTimeout(() => setAnimateMarkers(true), 100)
+      return () => clearTimeout(timer)
+    }
+  }, [filteredReports])
+
   const loadStrayReports = async () => {
     setLoading(true)
+    setAnimateMarkers(false)
     try {
       // En producción, esto sería una llamada real a la API
       // const response = await axios.get('http://localhost:5000/api/stray-reports')
@@ -143,6 +157,7 @@ const MapPage = () => {
   }
 
   const applyFilters = () => {
+    setAnimateMarkers(false)
     let filtered = [...strayReports]
 
     if (filters.urgency !== 'all') {
@@ -205,6 +220,39 @@ const MapPage = () => {
     return distance.toFixed(1)
   }
 
+  const handleCardClick = (report) => {
+    setSelectedMarkerId(report.id)
+    setSelectedReport(report)
+    
+    // Animar el mapa hacia el marcador seleccionado
+    if (mapRef.current) {
+      mapRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  }
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 50 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        type: "spring",
+        stiffness: 100,
+        damping: 15
+      }
+    }
+  }
+
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
       <motion.div
@@ -212,14 +260,31 @@ const MapPage = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
       >
-        <Box textAlign="center" mb={4}>
-          <Typography variant="h3" sx={{ color: 'white', fontWeight: 'bold', mb: 2 }}>
-            🗺️ Mapa de Perros Callejeros
-          </Typography>
-          <Typography variant="h6" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-            Encuentra perros reportados en tu zona y ayuda en su rescate
-          </Typography>
-        </Box>
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+        >
+          <Box textAlign="center" mb={4}>
+            <motion.div
+              animate={{ 
+                y: [0, -10, 0],
+              }}
+              transition={{
+                duration: 3,
+                repeat: Infinity,
+                repeatType: "loop"
+              }}
+            >
+              <Typography variant="h3" sx={{ color: 'white', fontWeight: 'bold', mb: 2 }}>
+                🗺️ Mapa de Perros Callejeros
+              </Typography>
+            </motion.div>
+            <Typography variant="h6" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+              Encuentra perros reportados en tu zona y ayuda en su rescate
+            </Typography>
+          </Box>
+        </motion.div>
 
         {/* Filtros */}
         <Card sx={{ 
@@ -327,92 +392,239 @@ const MapPage = () => {
         <Grid container spacing={3}>
           {/* Mapa */}
           <Grid item xs={12} md={8}>
-            <Card sx={{ 
-              backgroundColor: 'rgba(255,255,255,0.1)', 
-              backdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255,255,255,0.2)',
-              height: '600px'
-            }}>
-              <CardContent sx={{ height: '100%', p: 0 }}>
-                <Box
-                  sx={{
-                    height: '100%',
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    position: 'relative',
-                    borderRadius: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexDirection: 'column'
-                  }}
-                >
-                  <Typography variant="h4" sx={{ color: 'white', mb: 2 }}>
-                    🗺️ Mapa Interactivo
-                  </Typography>
-                  <Typography variant="body1" sx={{ color: 'rgba(255,255,255,0.8)', textAlign: 'center', mb: 3 }}>
-                    Aquí se mostraría un mapa real con Google Maps o Leaflet<br />
-                    mostrando la ubicación de todos los perros reportados
-                  </Typography>
-                  
-                  {/* Simulación de marcadores */}
-                  {filteredReports.map((report, index) => (
-                    <Fab
-                      key={report.id}
-                      size="small"
-                      sx={{
+            <motion.div
+              initial={{ opacity: 0, x: -50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 0.4 }}
+            >
+              <Card ref={mapRef} sx={{ 
+                backgroundColor: 'rgba(255,255,255,0.1)', 
+                backdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                height: '600px',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  boxShadow: '0 8px 32px rgba(255,255,255,0.1)'
+                }
+              }}>
+                <CardContent sx={{ height: '100%', p: 0 }}>
+                  <Box
+                    sx={{
+                      height: '100%',
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      position: 'relative',
+                      borderRadius: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexDirection: 'column',
+                      overflow: 'hidden'
+                    }}
+                  >
+                    {/* Efecto de olas animadas de fondo */}
+                    <motion.div
+                      style={{
                         position: 'absolute',
-                        top: `${20 + index * 15}%`,
-                        left: `${30 + index * 20}%`,
-                        backgroundColor: urgencyColors[report.urgency],
-                        color: 'white',
-                        '&:hover': {
-                          backgroundColor: urgencyColors[report.urgency],
-                          transform: 'scale(1.1)'
-                        }
+                        width: '200%',
+                        height: '200%',
+                        background: 'radial-gradient(circle at center, rgba(255,255,255,0.1) 0%, transparent 70%)',
                       }}
-                      onClick={() => setSelectedReport(report)}
-                    >
-                      <Pets />
-                    </Fab>
-                  ))}
-                </Box>
-              </CardContent>
-            </Card>
+                      animate={{
+                        scale: [1, 1.5, 1],
+                        opacity: [0.3, 0.5, 0.3],
+                      }}
+                      transition={{
+                        duration: 8,
+                        repeat: Infinity,
+                        repeatType: "reverse"
+                      }}
+                    />
+                    
+                    <Typography variant="h4" sx={{ color: 'white', mb: 2, zIndex: 1 }}>
+                      🗺️ Mapa Interactivo
+                    </Typography>
+                    <Typography variant="body1" sx={{ color: 'rgba(255,255,255,0.8)', textAlign: 'center', mb: 3, zIndex: 1 }}>
+                      Aquí se mostraría un mapa real con Google Maps o Leaflet<br />
+                      mostrando la ubicación de todos los perros reportados
+                    </Typography>
+                    
+                    {/* Simulación de marcadores con animación */}
+                    <AnimatePresence>
+                      {filteredReports.map((report, index) => (
+                        <motion.div
+                          key={report.id}
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{
+                            scale: selectedMarkerId === report.id ? [1, 1.3, 1.1] : 1,
+                            opacity: 1,
+                            y: hoveredReport === report.id ? -10 : 0
+                          }}
+                          exit={{ scale: 0, opacity: 0 }}
+                          transition={{ 
+                            duration: 0.5,
+                            delay: animateMarkers ? index * 0.1 : 0,
+                            type: "spring",
+                            stiffness: 200
+                          }}
+                          style={{
+                            position: 'absolute',
+                            top: `${20 + (index % 3) * 25}%`,
+                            left: `${20 + (index % 4) * 20}%`,
+                            zIndex: selectedMarkerId === report.id ? 1000 : 100
+                          }}
+                        >
+                          <Badge
+                            badgeContent={report.urgency === 'emergency' ? '!' : null}
+                            color="error"
+                            invisible={report.urgency !== 'emergency'}
+                            sx={{
+                              '& .MuiBadge-badge': {
+                                animation: 'pulse 1s infinite'
+                              },
+                              '@keyframes pulse': {
+                                '0%': { transform: 'scale(1)' },
+                                '50%': { transform: 'scale(1.2)' },
+                                '100%': { transform: 'scale(1)' }
+                              }
+                            }}
+                          >
+                            <Fab
+                              size="small"
+                              sx={{
+                                backgroundColor: urgencyColors[report.urgency],
+                                color: 'white',
+                                boxShadow: selectedMarkerId === report.id ? '0 0 20px rgba(255,255,255,0.8)' : '0 4px 8px rgba(0,0,0,0.3)',
+                                '&:hover': {
+                                  backgroundColor: urgencyColors[report.urgency],
+                                  transform: 'scale(1.2)',
+                                  boxShadow: '0 0 30px rgba(255,255,255,1)'
+                                },
+                                transition: 'all 0.3s ease',
+                                position: 'relative',
+                                '&::after': selectedMarkerId === report.id ? {
+                                  content: '""',
+                                  position: 'absolute',
+                                  width: '100%',
+                                  height: '100%',
+                                  borderRadius: '50%',
+                                  border: '2px solid white',
+                                  animation: 'ripple 1.5s infinite'
+                                } : {},
+                                '@keyframes ripple': {
+                                  '0%': { 
+                                    transform: 'scale(1)',
+                                    opacity: 1
+                                  },
+                                  '100%': { 
+                                    transform: 'scale(1.5)',
+                                    opacity: 0
+                                  }
+                                }
+                              }}
+                              onClick={() => handleCardClick(report)}
+                              onMouseEnter={() => setHoveredReport(report.id)}
+                              onMouseLeave={() => setHoveredReport(null)}
+                            >
+                              <Pets />
+                            </Fab>
+                          </Badge>
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                  </Box>
+                </CardContent>
+              </Card>
+            </motion.div>
           </Grid>
 
           {/* Lista de Reportes */}
           <Grid item xs={12} md={4}>
-            <Box sx={{ maxHeight: '600px', overflowY: 'auto' }}>
-              {filteredReports.map((report) => (
-                <motion.div
-                  key={report.id}
-                  initial={{ opacity: 0, x: 50 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.5 }}
-                >
-                  <Card
-                    sx={{
-                      backgroundColor: 'rgba(255,255,255,0.1)',
-                      backdropFilter: 'blur(20px)',
-                      border: '1px solid rgba(255,255,255,0.2)',
-                      mb: 2,
-                      cursor: 'pointer',
-                      '&:hover': {
-                        backgroundColor: 'rgba(255,255,255,0.2)',
-                        transform: 'translateY(-2px)'
-                      },
-                      transition: 'all 0.3s ease'
-                    }}
-                    onClick={() => setSelectedReport(report)}
+            <motion.div
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              style={{ maxHeight: '600px', overflowY: 'auto' }}
+            >
+              <AnimatePresence>
+                {filteredReports.map((report, index) => (
+                  <motion.div
+                    key={report.id}
+                    variants={itemVariants}
+                    initial="hidden"
+                    animate="visible"
+                    exit={{ opacity: 0, x: 100 }}
+                    layout
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={{ duration: 0.3, delay: index * 0.05 }}
                   >
+                    <Card
+                      sx={{
+                        backgroundColor: selectedMarkerId === report.id ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)',
+                        backdropFilter: 'blur(20px)',
+                        border: selectedMarkerId === report.id ? '2px solid white' : '1px solid rgba(255,255,255,0.2)',
+                        mb: 2,
+                        cursor: 'pointer',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        '&:hover': {
+                          backgroundColor: 'rgba(255,255,255,0.2)',
+                          transform: 'translateY(-2px)',
+                          boxShadow: '0 8px 24px rgba(0,0,0,0.2)'
+                        },
+                        '&::before': {
+                          content: '""',
+                          position: 'absolute',
+                          top: 0,
+                          left: '-100%',
+                          width: '100%',
+                          height: '100%',
+                          background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
+                          transition: 'left 0.6s ease'
+                        },
+                        '&:hover::before': {
+                          left: '100%'
+                        },
+                        transition: 'all 0.3s ease'
+                      }}
+                      onClick={() => handleCardClick(report)}
+                      onMouseEnter={() => setHoveredReport(report.id)}
+                      onMouseLeave={() => setHoveredReport(null)}
+                    >
                     <CardContent>
+                      {selectedMarkerId === report.id && (
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: '100%' }}
+                          transition={{ duration: 0.5 }}
+                          style={{
+                            height: 3,
+                            background: 'linear-gradient(90deg, #4CAF50, #2196F3)',
+                            marginBottom: 10,
+                            borderRadius: 2
+                          }}
+                        />
+                      )}
                       <Box display="flex" alignItems="center" mb={2}>
-                        <Avatar
-                          src={report.photo}
-                          sx={{ width: 50, height: 50, mr: 2 }}
+                        <motion.div
+                          animate={{
+                            rotate: hoveredReport === report.id ? [0, -10, 10, 0] : 0
+                          }}
+                          transition={{ duration: 0.5 }}
                         >
-                          <Pets />
-                        </Avatar>
+                          <Avatar
+                            src={report.photo}
+                            sx={{ 
+                              width: 50, 
+                              height: 50, 
+                              mr: 2,
+                              border: selectedMarkerId === report.id ? '2px solid white' : 'none',
+                              boxShadow: selectedMarkerId === report.id ? '0 0 15px rgba(255,255,255,0.5)' : 'none'
+                            }}
+                          >
+                            <Pets />
+                          </Avatar>
+                        </motion.div>
                         <Box flex={1}>
                           <Typography variant="h6" sx={{ color: 'white' }}>
                             {report.breed}
@@ -463,32 +675,49 @@ const MapPage = () => {
                       </Typography>
                     </CardContent>
                   </Card>
-                </motion.div>
-              ))}
-            </Box>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </motion.div>
           </Grid>
         </Grid>
 
-        {/* Dialog de Detalles */}
-        <Dialog
-          open={!!selectedReport}
-          onClose={() => setSelectedReport(null)}
-          maxWidth="md"
-          fullWidth
-        >
+        {/* Dialog de Detalles con Animación */}
+        <AnimatePresence>
           {selectedReport && (
-            <>
+            <Dialog
+              open={!!selectedReport}
+              onClose={() => {
+                setSelectedReport(null)
+                setSelectedMarkerId(null)
+              }}
+              maxWidth="md"
+              fullWidth
+              TransitionComponent={Zoom}
+              TransitionProps={{
+                timeout: 400
+              }}
+            >
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                transition={{ duration: 0.3 }}
+              >
               <DialogTitle sx={{ backgroundColor: '#1976d2', color: 'white' }}>
                 <Box display="flex" alignItems="center" justifyContent="space-between">
                   <Typography variant="h6">
-                    Detalles del Reporte - {selectedReport.breed}
+                    Detalles del Reporte - {selectedReport?.breed}
                   </Typography>
                   <Button
-                    onClick={() => setSelectedReport(null)}
-                    sx={{ color: 'white', minWidth: 'auto' }}
-                  >
-                    <Close />
-                  </Button>
+                  onClick={() => {
+                    setSelectedReport(null)
+                    setSelectedMarkerId(null)
+                  }}
+                  sx={{ color: 'white', minWidth: 'auto' }}
+                >
+                  <Close />
+                </Button>
                 </Box>
               </DialogTitle>
               
@@ -623,9 +852,10 @@ const MapPage = () => {
                   Ver en Mapa
                 </Button>
               </DialogActions>
-            </>
+              </motion.div>
+            </Dialog>
           )}
-        </Dialog>
+        </AnimatePresence>
       </motion.div>
     </Container>
   )

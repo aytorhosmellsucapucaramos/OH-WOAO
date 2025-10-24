@@ -3,7 +3,7 @@ import {
   Container, Typography, Card, CardContent, TextField, Button,
   Box, Grid, Avatar, Chip, Alert, CircularProgress
 } from '@mui/material'
-import { Search, Pets, Person, QrCode } from '@mui/icons-material'
+import { Search, Pets, Person } from '@mui/icons-material'
 import { motion } from 'framer-motion'
 import axios from 'axios'
 
@@ -22,20 +22,19 @@ const SearchPage = () => {
 
     try {
       const response = await axios.get(`/api/search?q=${encodeURIComponent(searchTerm)}`)
-      setSearchResults(response.data)
-      if (response.data.length === 0) {
+      const results = response.data.success ? response.data.data : []
+      setSearchResults(results)
+      if (results.length === 0) {
         setError('No se encontraron mascotas con ese DNI o CUI')
       }
     } catch (err) {
+      console.error('Search error:', err)
       setError('Error al buscar mascotas')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleViewCard = (cui) => {
-    window.open(`/pet/${cui}`, '_blank')
-  }
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
@@ -44,24 +43,27 @@ const SearchPage = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        <Typography 
-          variant="h4" 
-          textAlign="center" 
-          sx={{ 
-            color: 'white', 
-            mb: 4, 
-            fontWeight: 600,
-            textShadow: '2px 2px 4px rgba(0,0,0,0.3)'
-          }}
-        >
-          Buscar Mascota
-        </Typography>
+        {/* Header con logos simétricos */}
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 3, mb: 4 }}>
+          <Typography
+            variant="h4"
+            textAlign="center"
+            sx={{
+              color: '#1e293b',
+              fontWeight: 700,
+              letterSpacing: '-0.5px',
+              minWidth: '280px'
+            }}
+          >
+            Buscar Mascota
+          </Typography>
+        </Box>
 
-        <Card 
-          sx={{ 
-            background: 'rgba(255,255,255,0.95)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(255,255,255,0.2)',
+        <Card
+          sx={{
+            background: '#ffffff',
+            border: '1px solid #e5e7eb',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
             mb: 3
           }}
         >
@@ -89,9 +91,12 @@ const SearchPage = () => {
                   disabled={loading}
                   sx={{
                     minWidth: 120,
-                    background: 'linear-gradient(45deg, #2196f3 30%, #64b5f6 90%)',
+                    background: '#2563eb',
+                    textTransform: 'none',
+                    boxShadow: 'none',
                     '&:hover': {
-                      background: 'linear-gradient(45deg, #1976d2 30%, #2196f3 90%)',
+                      background: '#1d4ed8',
+                      boxShadow: '0 2px 8px rgba(37, 99, 235, 0.3)',
                     }
                   }}
                 >
@@ -115,13 +120,12 @@ const SearchPage = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <Typography 
-              variant="h6" 
-              sx={{ 
-                color: 'white', 
-                mb: 2, 
-                fontWeight: 600,
-                textShadow: '1px 1px 2px rgba(0,0,0,0.3)'
+            <Typography
+              variant="h6"
+              sx={{
+                color: '#1e293b',
+                mb: 2,
+                fontWeight: 600
               }}
             >
               Resultados de la Búsqueda ({searchResults.length})
@@ -135,73 +139,77 @@ const SearchPage = () => {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.5, delay: index * 0.1 }}
                   >
-                    <Card 
+                    <Card
                       className="pet-card"
-                      sx={{ 
-                        background: 'rgba(255,255,255,0.95)',
-                        backdropFilter: 'blur(10px)',
-                        border: '1px solid rgba(255,255,255,0.2)'
+                      sx={{
+                        background: '#ffffff',
+                        border: '1px solid #e5e7eb',
+                        boxShadow: '0 4px 15px rgba(0,0,0,0.08)',
+                        transition: 'all 0.3s ease',
+                        '&:hover': {
+                          boxShadow: '0 8px 25px rgba(37, 99, 235, 0.15)',
+                          transform: 'translateY(-2px)'
+                        }
                       }}
                     >
                       <CardContent sx={{ p: 3 }}>
-                        <Grid container spacing={3} alignItems="center">
+                        <Grid container spacing={3} sx={{ alignItems: 'center' }}>
                           <Grid item xs={12} sm={3}>
                             <Avatar
-                              src={pet.photo_path ? `/api/uploads/${pet.photo_path}` : undefined}
-                              sx={{ 
-                                width: 80, 
-                                height: 80, 
+                              src={pet.photo_frontal_path ? `http://localhost:5000/api/uploads/${pet.photo_frontal_path}` : undefined}
+                              sx={{
+                                width: 150,
+                                height: 150,
                                 mx: 'auto',
                                 border: '3px solid #2196f3'
                               }}
                             >
-                              <Pets sx={{ fontSize: 40 }} />
+                              <Pets sx={{ fontSize: 50 }} />
                             </Avatar>
                           </Grid>
-                          <Grid item xs={12} sm={6}>
-                            <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
-                              {pet.pet_name} {pet.pet_last_name}
+
+                          {/* Información de la Mascota */}
+                          <Grid item xs={12} sm={4.5}>
+                            <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, color: '#1976d2' }}>
+                              🐕 Información de la Mascota
                             </Typography>
-                            <Box sx={{ mb: 1 }}>
-                              <Chip 
-                                label={pet.species} 
-                                size="small" 
-                                color="primary" 
-                                sx={{ mr: 1 }} 
-                              />
-                              <Chip 
-                                label={pet.breed} 
-                                size="small" 
-                                variant="outlined" 
-                              />
-                            </Box>
-                            <Typography variant="body2" color="text.secondary">
-                              <strong>CUI:</strong> {pet.cui}
+                            <Typography variant="h6" sx={{ fontWeight: 500, mb: 1, textTransform: 'uppercase' }}>
+                            <strong>Nombre:</strong> {pet.pet_name} {pet.sex === 'male' ? '♂️' : pet.sex === 'female' ? '♀️' : ''}
                             </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              <strong>Adoptante:</strong> {pet.adopter_name} {pet.adopter_last_name}
+                            <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
+                              <strong>Raza:</strong> {pet.breed_name || pet.breed || 'N/A'}
                             </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              <strong>DNI:</strong> {pet.dni}
+                            <Typography variant="body2" sx={{ mb: 0.5 }}>
+                              <strong>🎨 Color:</strong> {pet.color_name || pet.color || 'N/A'}
+                            </Typography>
+                            <Typography variant="body2" sx={{ mb: 0.5 }}>
+                              <strong>📅 Edad:</strong> {pet.age} meses
+                            </Typography>
+                            <Typography variant="body2" sx={{ mb: 0.5 }}>
+                              <strong>📏 Tamaño:</strong> {pet.size_name || pet.size || 'N/A'}
                             </Typography>
                           </Grid>
-                          <Grid item xs={12} sm={3}>
-                            <Button
-                              fullWidth
-                              variant="contained"
-                              startIcon={<QrCode />}
-                              onClick={() => handleViewCard(pet.cui)}
-                              sx={{
-                                background: 'linear-gradient(45deg, #ff9800 30%, #ffb74d 90%)',
-                                '&:hover': {
-                                  background: 'linear-gradient(45deg, #f57c00 30%, #ff9800 90%)',
-                                  transform: 'translateY(-2px)',
-                                },
-                                transition: 'all 0.3s ease'
-                              }}
-                            >
-                              Ver Carnet
-                            </Button>
+
+                          {/* Información del Propietario */}
+                          <Grid item xs={12} sm={4.5}>
+                            <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, color: '#388e3c' }}>
+                              👤 Información del Propietario
+                            </Typography>
+                            <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
+                              <strong>Nombres:</strong> {pet.owner_first_name} {pet.owner_last_name}
+                            </Typography>
+                            <Typography variant="body2" sx={{ mb: 0.5 }}>
+                              <strong>📞 Teléfono:</strong> {pet.owner_phone}
+                            </Typography>
+                            <Typography variant="body2" sx={{ mb: 0.5 }}>
+                              <strong>📧 Email:</strong> {pet.owner_email}
+                            </Typography>
+                            <Typography variant="body2" >
+                              <strong>📍 Dirección:</strong> {pet.owner_address}
+                            </Typography>
+                            <Typography variant="body2" >
+                              <strong>🆔 DNI:</strong> {pet.owner_dni}
+                            </Typography>
                           </Grid>
                         </Grid>
                       </CardContent>

@@ -34,7 +34,7 @@ const LoginPage = () => {
     setError('');
 
     try {
-      const response = await axios.post('/api/auth/login', formData);
+      const response = await axios.post('http://localhost:5000/api/auth/login', formData);
       
       if (response.data.success) {
         // Store auth data
@@ -43,9 +43,19 @@ const LoginPage = () => {
         localStorage.setItem('userId', response.data.user.id);
         localStorage.setItem('userFullName', response.data.user.fullName);
         localStorage.setItem('userDNI', response.data.user.dni);
+        localStorage.setItem('userRole', response.data.user.role || 'user');
         
-        // Redirect to user panel
-        navigate('/user/dashboard');
+        // Store CUI if user has pets registered
+        if (response.data.user.cui) {
+          localStorage.setItem('userCUI', response.data.user.cui);
+        }
+        
+        // Redirección automática según rol
+        if (response.data.user.role === 'admin') {
+          navigate('/admin/dashboard');
+        } else {
+          navigate('/dashboard');
+        }
       }
     } catch (err) {
       console.error('Login error:', err);
@@ -62,26 +72,65 @@ const LoginPage = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        <Typography 
-          variant="h4" 
-          textAlign="center" 
-          sx={{ 
-            color: 'white', 
-            mb: 4, 
-            fontWeight: 600,
-            textShadow: '2px 2px 4px rgba(0,0,0,0.3)'
-          }}
-        >
-          Iniciar Sesión
-        </Typography>
+        {/* Header mejorado */}
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: 'column',
+          alignItems: 'center',
+          mb: 4,
+          gap: 2
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Box component="img" 
+              src="/images/logos/Logo Escudo MPP.png" 
+              alt="Escudo MPP" 
+              sx={{ 
+                height: 80, 
+                width: 'auto',
+                filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.3))'
+              }} 
+            />
+            <Box component="img" 
+              src="/images/logos/Logo Escudo MPP letra.png" 
+              alt="Municipalidad de Puno" 
+              sx={{ 
+                height: 80, 
+                width: 'auto',
+                filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.3))'
+              }} 
+            />
+          </Box>
+          <Typography 
+            variant="h3" 
+            textAlign="center" 
+            sx={{ 
+              color: '#1e293b', 
+              fontWeight: 700,
+              letterSpacing: '-0.5px',
+              mb: 1
+            }}
+          >
+            Iniciar Sesión
+          </Typography>
+          <Typography 
+            variant="subtitle1" 
+            textAlign="center" 
+            sx={{ 
+              color: '#64748b', 
+              fontWeight: 400,
+            }}
+          >
+            Sistema de Registro Municipal de Mascotas
+          </Typography>
+        </Box>
 
         <Card 
           sx={{ 
-            background: 'rgba(255,255,255,0.98)',
-            backdropFilter: 'blur(15px)',
-            border: '1px solid rgba(255,255,255,0.3)',
+            background: '#ffffff',
+            border: '1px solid #e5e7eb',
             borderRadius: 3,
-            boxShadow: '0 8px 32px rgba(0,0,0,0.2)'
+            boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+            overflow: 'hidden'
           }}
         >
           <CardContent sx={{ p: 4 }}>
@@ -98,6 +147,7 @@ const LoginPage = () => {
                   label="Email"
                   name="email"
                   type="email"
+                  autoComplete="email"
                   value={formData.email}
                   onChange={handleInputChange}
                   required
@@ -117,6 +167,7 @@ const LoginPage = () => {
                   label="Contraseña"
                   name="password"
                   type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
                   value={formData.password}
                   onChange={handleInputChange}
                   required
@@ -148,13 +199,16 @@ const LoginPage = () => {
                 disabled={loading}
                 startIcon={!loading && <Login />}
                 sx={{
-                  background: 'linear-gradient(45deg, #2196f3 30%, #64b5f6 90%)',
+                  background: '#2563eb',
                   py: 1.5,
-                  fontSize: '1.1rem',
+                  fontSize: '1rem',
                   fontWeight: 600,
                   mb: 2,
+                  textTransform: 'none',
+                  boxShadow: 'none',
                   '&:hover': {
-                    background: 'linear-gradient(45deg, #1976d2 30%, #2196f3 90%)',
+                    background: '#1d4ed8',
+                    boxShadow: '0 2px 8px rgba(37, 99, 235, 0.3)',
                   },
                 }}
               >
@@ -172,13 +226,21 @@ const LoginPage = () => {
                 variant="outlined"
                 startIcon={<PersonAdd />}
                 onClick={() => navigate('/register')}
-                sx={{ textTransform: 'none' }}
+                sx={{ 
+                  textTransform: 'none',
+                  borderColor: '#2563eb',
+                  color: '#2563eb',
+                  '&:hover': {
+                    borderColor: '#1d4ed8',
+                    backgroundColor: 'rgba(37, 99, 235, 0.05)',
+                  }
+                }}
               >
                 Registrar Nueva Mascota
               </Button>
             </Box>
 
-            <Box sx={{ mt: 3, p: 2, backgroundColor: '#f5f5f5', borderRadius: 2 }}>
+            <Box sx={{ mt: 3, p: 2, backgroundColor: '#f8fafc', borderRadius: 2, border: '1px solid #e5e7eb' }}>
               <Typography variant="body2" color="text.secondary" textAlign="center">
                 <strong>Nota:</strong> Para registrarte, primero debes registrar una mascota. 
                 Tu cuenta se creará automáticamente con los datos del propietario.

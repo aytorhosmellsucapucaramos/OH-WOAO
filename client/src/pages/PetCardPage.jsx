@@ -13,6 +13,35 @@ const PetCardPage = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
+  // Estilos para impresión
+  useEffect(() => {
+    const style = document.createElement('style')
+    style.textContent = `
+      @media print {
+        /* Ocultar botón Volver en impresión */
+        .MuiButton-root,
+        .no-print {
+          display: none !important;
+        }
+        
+        /* Container sin padding en impresión */
+        .MuiContainer-root {
+          padding: 0 !important;
+          margin: 0 !important;
+          max-width: 100% !important;
+        }
+        
+        /* Motion div sin animaciones */
+        [class*="motion"] {
+          animation: none !important;
+          transform: none !important;
+        }
+      }
+    `
+    document.head.appendChild(style)
+    return () => document.head.removeChild(style)
+  }, [])
+
   useEffect(() => {
     const fetchPetData = async () => {
       try {
@@ -77,13 +106,13 @@ const PetCardPage = () => {
   }
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
+    <Container maxWidth="lg" sx={{ py: { xs: 2, md: 4 }, px: { xs: 0, sm: 2 } }}>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <Box mb={3}>
+        <Box mb={3} sx={{ px: { xs: 2, sm: 0 } }}>
           <Button
             variant="outlined"
             startIcon={<ArrowBack />}

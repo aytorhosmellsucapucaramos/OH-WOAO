@@ -1,5 +1,5 @@
 import React from 'react'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { Box } from '@mui/material'
 import Navbar from './components/Navbar'
 import HomePage from './pages/HomePage'
@@ -10,7 +10,6 @@ import ReportStrayPage from './pages/ReportStrayPage'
 import MapPageLeaflet from './pages/MapPageLeaflet'
 import LoginPage from './pages/LoginPage'
 import UserDashboard from './pages/UserDashboard'
-import AdminLogin from './pages/AdminLogin'
 import AdminDashboard from './pages/AdminDashboard'
 import AdminRoute from './components/AdminRoute'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -19,12 +18,8 @@ function App() {
   return (
     <Router>
       <Box sx={{ 
-        minHeight: '100vh', 
-        backgroundImage: 'url("https://images.unsplash.com/photo-1537123547273-e59f4f437f1b?fm=jpg&q=60&w=3000&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8cGVycm9zJTIwY29ycmllbmRvfGVufDB8fDB8fHww")',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-        backgroundAttachment: 'fixed',
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 30%, #f1f5f9 60%, #e2e8f0 100%)',
         position: 'relative',
         '&::before': {
           content: '""',
@@ -33,7 +28,7 @@ function App() {
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.3)',
+          background: 'radial-gradient(circle at 20% 30%, rgba(59, 130, 246, 0.03) 0%, transparent 50%), radial-gradient(circle at 80% 70%, rgba(147, 197, 253, 0.05) 0%, transparent 50%)',
           zIndex: 1
         },
         '& > *': {
@@ -60,11 +55,16 @@ function App() {
               <UserDashboard />
             </ProtectedRoute>
           } />
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <UserDashboard />
+            </ProtectedRoute>
+          } />
           
           <Route path="/map" element={<MapPageLeaflet />} />
           
           {/* Rutas de Administración */}
-          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="/admin/dashboard" element={
             <AdminRoute>
               <AdminDashboard />

@@ -15,9 +15,13 @@ import {
   CheckCircle,
   Cancel,
   Add,
-  Refresh
+  Refresh,
+  Print,
+  QrCode
 } from '@mui/icons-material'
 import PetManagement from '../components/admin/PetManagement'
+import UserManagement from '../components/admin/UserManagement'
+import Analytics from '../components/admin/Analytics'
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('dashboard')
@@ -26,32 +30,31 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
-
-  // Datos simulados para el dashboard
-  const dashboardStats = {
-    totalPets: 156,
-    totalReports: 42,
-    pendingReports: 8,
-    adoptedPets: 89,
-    activeUsers: 234
-  }
+  const [dashboardStats, setDashboardStats] = useState({
+    totalPets: 0,
+    totalUsers: 0,
+    activeReports: 0,
+    cardsPrinted: 0,
+    cardsPending: 0
+  })
 
   useEffect(() => {
     fetchData()
+    fetchStats()
   }, [])
 
   const fetchData = async () => {
     setLoading(true)
     try {
       // Fetch pets
-      const petsResponse = await fetch('/api/pets')
+      const petsResponse = await fetch('http://localhost:5000/api/admin/pets')
       if (petsResponse.ok) {
         const petsData = await petsResponse.json()
         setPets(petsData.data || [])
       }
 
       // Fetch stray reports
-      const reportsResponse = await fetch('/api/stray-reports')
+      const reportsResponse = await fetch('http://localhost:5000/api/admin/stray-reports')
       if (reportsResponse.ok) {
         const reportsData = await reportsResponse.json()
         setStrayReports(reportsData.data || [])
@@ -63,9 +66,42 @@ const AdminDashboard = () => {
     }
   }
 
+  const fetchStats = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/admin/stats')
+      if (response.ok) {
+        const data = await response.json()
+        setDashboardStats(data.stats || {})
+      }
+    } catch (error) {
+      console.error('Error fetching stats:', error)
+    }
+  }
+
+  const handlePrintPet = (cui) => {
+    // Abrir carnet en nueva ventana y activar impresión
+    const printWindow = window.open(`/pet/${cui}`, '_blank')
+    if (printWindow) {
+      printWindow.onload = () => {
+        setTimeout(() => {
+          printWindow.print()
+        }, 1000)
+      }
+    }
+  }
+
+  const handlePrintMultiplePets = () => {
+    if (pets.length === 0) {
+      alert('No hay mascotas para imprimir')
+      return
+    }
+    // Imprimir carnets seleccionados o todos
+    alert('Funcionalidad de impresión masiva en desarrollo')
+  }
+
   const handleStatusUpdate = async (reportId, newStatus) => {
     try {
-      const response = await fetch(`/api/stray-reports/${reportId}/status`, {
+      const response = await fetch(`http://localhost:5000/api/admin/stray-reports/${reportId}/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -74,16 +110,36 @@ const AdminDashboard = () => {
       })
 
       if (response.ok) {
-        fetchData() // Refresh data
+        fetchData()
+        fetchStats()
       }
     } catch (error) {
       console.error('Error updating status:', error)
     }
   }
 
+  const handleDeleteReport = async (reportId) => {
+    if (!window.confirm('¿Estás seguro de eliminar este reporte?')) return
+    
+    try {
+      const response = await fetch(`http://localhost:5000/api/admin/stray-reports/${reportId}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        fetchData()
+        fetchStats()
+      }
+    } catch (error) {
+      console.error('Error deleting report:', error)
+    }
+  }
+
   const filteredReports = strayReports.filter(report => {
-    const matchesSearch = report.reporterName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         report.breed?.toLowerCase().includes(searchTerm.toLowerCase())
+    const reporterName = `${report.reporter_first_name || ''} ${report.reporter_last_name || ''}`.trim()
+    const matchesSearch = reporterName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         report.breed?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         report.location?.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = filterStatus === 'all' || report.status === filterStatus
     return matchesSearch && matchesStatus
   })
@@ -95,7 +151,7 @@ const AdminDashboard = () => {
       onClick={onClick}
       className={`flex items-center space-x-3 px-6 py-3 rounded-xl transition-all duration-300 ${
         isActive 
-          ? 'bg-gradient-to-r from-orange-400 to-pink-400 text-white shadow-lg' 
+          ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg' 
           : 'bg-white/10 text-gray-700 hover:bg-white/20'
       }`}
     >
@@ -133,84 +189,91 @@ const AdminDashboard = () => {
     >
       <div className="flex items-center space-x-4">
         <img
-          src={pet.photo || 'https://images.unsplash.com/photo-1552053831-71594a27632d?w=100'}
-          alt={pet.name}
-          className="w-16 h-16 rounded-full object-cover border-4 border-orange-200"
+          src={pet.photo_path ? `http://localhost:5000/api/uploads/${pet.photo_path}` : 'https://images.unsplash.com/photo-1552053831-71594a27632d?w=100'}
+          alt={pet.pet_name}
+          className="w-16 h-16 rounded-full object-cover border-4 border-cyan-200"
         />
         <div className="flex-1">
-          <h3 className="font-bold text-lg text-gray-800">{pet.name}</h3>
-          <p className="text-gray-600">{pet.breed} • {pet.age}</p>
+          <h3 className="font-bold text-lg text-gray-800">{pet.pet_name}</h3>
+          <p className="text-gray-600">{pet.breed} • {pet.age} años</p>
           <p className="text-sm text-gray-500">CUI: {pet.cui}</p>
         </div>
         <div className="flex space-x-2">
-          <button className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors">
+          <button 
+            onClick={() => window.open(`/pet/${pet.cui}`, '_blank')}
+            className="p-2 text-cyan-600 hover:bg-cyan-100 rounded-lg transition-colors"
+            title="Ver Carnet"
+          >
             <Visibility />
           </button>
-          <button className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors">
-            <Edit />
+          <button 
+            onClick={() => handlePrintPet(pet.cui)}
+            className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+            title="Imprimir Carnet"
+          >
+            <Print />
           </button>
         </div>
       </div>
     </motion.div>
   )
 
-  const ReportCard = ({ report }) => (
-    <motion.div
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300"
-    >
-      <div className="flex justify-between items-start mb-4">
-        <div>
-          <h3 className="font-bold text-lg text-gray-800">{report.breed || 'Perro Callejero'}</h3>
-          <p className="text-gray-600">Reportado por: {report.reporterName}</p>
-          <p className="text-sm text-gray-500">{report.address}</p>
-        </div>
-        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-          report.status === 'active' ? 'bg-red-100 text-red-600' :
-          report.status === 'rescued' ? 'bg-green-100 text-green-600' :
-          report.status === 'adopted' ? 'bg-blue-100 text-blue-600' :
-          'bg-gray-100 text-gray-600'
-        }`}>
-          {report.status}
-        </span>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        <div>
-          <p className="text-sm text-gray-500">Tamaño</p>
-          <p className="font-semibold">{report.size}</p>
-        </div>
-        <div>
-          <p className="text-sm text-gray-500">Urgencia</p>
-          <p className={`font-semibold ${
-            report.urgency === 'high' ? 'text-red-600' :
-            report.urgency === 'medium' ? 'text-yellow-600' :
-            'text-green-600'
+  const ReportCard = ({ report }) => {
+    const reporterName = `${report.reporter_first_name || ''} ${report.reporter_last_name || ''}`.trim() || 'Usuario anónimo'
+    
+    return (
+      <motion.div
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300"
+      >
+        <div className="flex justify-between items-start mb-4">
+          <div>
+            <h3 className="font-bold text-lg text-gray-800">{report.breed || 'Perro Callejero'}</h3>
+            <p className="text-gray-600">Reportado por: {reporterName}</p>
+            <p className="text-sm text-gray-500">{report.location}</p>
+          </div>
+          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+            report.status === 'pending' ? 'bg-yellow-100 text-yellow-600' :
+            report.status === 'in_progress' ? 'bg-blue-100 text-blue-600' :
+            report.status === 'resolved' ? 'bg-green-100 text-green-600' :
+            'bg-gray-100 text-gray-600'
           }`}>
-            {report.urgency}
-          </p>
+            {report.status === 'pending' ? 'Pendiente' : 
+             report.status === 'in_progress' ? 'En Progreso' :
+             report.status === 'resolved' ? 'Resuelto' : report.status}
+          </span>
         </div>
-      </div>
 
-      <div className="flex space-x-2">
-        <button
-          onClick={() => handleStatusUpdate(report.id, 'rescued')}
-          className="flex-1 bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg transition-colors"
-        >
-          <CheckCircle className="w-4 h-4 mr-2" />
-          Rescatado
-        </button>
-        <button
-          onClick={() => handleStatusUpdate(report.id, 'adopted')}
-          className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg transition-colors"
-        >
-          <Pets className="w-4 h-4 mr-2" />
-          Adoptado
-        </button>
-      </div>
-    </motion.div>
-  )
+        {report.description && (
+          <div className="mb-4">
+            <p className="text-sm text-gray-600">{report.description}</p>
+          </div>
+        )}
+
+        <div className="flex space-x-2">
+          <button
+            onClick={() => handleStatusUpdate(report.id, 'in_progress')}
+            className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg transition-colors text-sm"
+          >
+            En Progreso
+          </button>
+          <button
+            onClick={() => handleStatusUpdate(report.id, 'resolved')}
+            className="flex-1 bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg transition-colors text-sm"
+          >
+            Resuelto
+          </button>
+          <button
+            onClick={() => handleDeleteReport(report.id)}
+            className="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg transition-colors"
+          >
+            <Delete className="w-4 h-4" />
+          </button>
+        </div>
+      </motion.div>
+    )
+  }
 
   const renderContent = () => {
     switch (activeTab) {
@@ -223,34 +286,30 @@ const AdminDashboard = () => {
                 value={dashboardStats.totalPets}
                 icon={<Pets className="w-6 h-6" />}
                 color="text-blue-600"
-                trend="12"
               />
               <StatCard
                 title="Reportes Activos"
-                value={dashboardStats.totalReports}
+                value={dashboardStats.activeReports}
                 icon={<Report className="w-6 h-6" />}
                 color="text-red-600"
-                trend="8"
               />
               <StatCard
-                title="Pendientes"
-                value={dashboardStats.pendingReports}
+                title="Carnets Pendientes"
+                value={dashboardStats.cardsPending}
                 icon={<FilterList className="w-6 h-6" />}
                 color="text-yellow-600"
               />
               <StatCard
-                title="Adoptados"
-                value={dashboardStats.adoptedPets}
+                title="Carnets Impresos"
+                value={dashboardStats.cardsPrinted}
                 icon={<CheckCircle className="w-6 h-6" />}
                 color="text-green-600"
-                trend="15"
               />
               <StatCard
-                title="Usuarios Activos"
-                value={dashboardStats.activeUsers}
+                title="Total Usuarios"
+                value={dashboardStats.totalUsers}
                 icon={<People className="w-6 h-6" />}
                 color="text-purple-600"
-                trend="5"
               />
             </div>
 
@@ -260,19 +319,21 @@ const AdminDashboard = () => {
                 <div className="space-y-4">
                   {strayReports.slice(0, 3).map((report, index) => (
                     <div key={index} className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg">
-                      <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-                        <Pets className="w-6 h-6 text-orange-600" />
+                      <div className="w-12 h-12 bg-cyan-100 rounded-full flex items-center justify-center">
+                        <Pets className="w-6 h-6 text-cyan-600" />
                       </div>
                       <div className="flex-1">
                         <p className="font-semibold">{report.breed || 'Perro Callejero'}</p>
-                        <p className="text-sm text-gray-600">{report.address}</p>
+                        <p className="text-sm text-gray-600">{report.location}</p>
                       </div>
                       <span className={`px-2 py-1 rounded-full text-xs ${
-                        report.urgency === 'high' ? 'bg-red-100 text-red-600' :
-                        report.urgency === 'medium' ? 'bg-yellow-100 text-yellow-600' :
+                        report.status === 'pending' ? 'bg-red-100 text-red-600' :
+                        report.status === 'in_progress' ? 'bg-yellow-100 text-yellow-600' :
                         'bg-green-100 text-green-600'
                       }`}>
-                        {report.urgency}
+                        {report.status === 'pending' ? 'Pendiente' : 
+                         report.status === 'in_progress' ? 'En Progreso' :
+                         'Resuelto'}
                       </span>
                     </div>
                   ))}
@@ -285,12 +346,12 @@ const AdminDashboard = () => {
                   {pets.slice(0, 3).map((pet, index) => (
                     <div key={index} className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg">
                       <img
-                        src={pet.photo || 'https://images.unsplash.com/photo-1552053831-71594a27632d?w=50'}
-                        alt={pet.name}
+                        src={pet.photo_path ? `http://localhost:5000/api/uploads/${pet.photo_path}` : 'https://images.unsplash.com/photo-1552053831-71594a27632d?w=50'}
+                        alt={pet.pet_name}
                         className="w-12 h-12 rounded-full object-cover"
                       />
                       <div className="flex-1">
-                        <p className="font-semibold">{pet.name}</p>
+                        <p className="font-semibold">{pet.pet_name}</p>
                         <p className="text-sm text-gray-600">{pet.breed}</p>
                       </div>
                       <span className="text-xs text-gray-500">{pet.cui}</span>
@@ -329,10 +390,9 @@ const AdminDashboard = () => {
                   className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 >
                   <option value="all">Todos los estados</option>
-                  <option value="active">Activo</option>
-                  <option value="rescued">Rescatado</option>
-                  <option value="adopted">Adoptado</option>
-                  <option value="closed">Cerrado</option>
+                  <option value="pending">Pendiente</option>
+                  <option value="in_progress">En Progreso</option>
+                  <option value="resolved">Resuelto</option>
                 </select>
 
                 <button
@@ -349,6 +409,69 @@ const AdminDashboard = () => {
                 <ReportCard key={index} report={report} />
               ))}
             </div>
+
+            {filteredReports.length === 0 && (
+              <div className="text-center py-12">
+                <Report className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500 text-lg">No se encontraron reportes</p>
+              </div>
+            )}
+          </div>
+        )
+
+      case 'users':
+        return <UserManagement />
+
+      case 'analytics':
+        return <Analytics />
+
+      case 'settings':
+        return (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-gray-800">⚙️ Configuración del Sistema</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-white rounded-2xl p-6 shadow-lg">
+                <h3 className="text-lg font-bold text-gray-800 mb-4">Información del Sistema</h3>
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Versión:</span>
+                    <span className="font-semibold">1.0.0</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Base de Datos:</span>
+                    <span className="font-semibold">MySQL</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Estado:</span>
+                    <span className="font-semibold text-green-600">✓ Operativo</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl p-6 shadow-lg">
+                <h3 className="text-lg font-bold text-gray-800 mb-4">Acciones del Sistema</h3>
+                <div className="space-y-3">
+                  <button className="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors">
+                    Exportar Base de Datos
+                  </button>
+                  <button className="w-full px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg transition-colors">
+                    Limpiar Caché
+                  </button>
+                  <button className="w-full px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors">
+                    Generar Reporte
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl p-6 shadow-lg">
+              <h3 className="text-lg font-bold text-gray-800 mb-4">Administradores</h3>
+              <p className="text-gray-600 mb-4">Usuario actual: admin</p>
+              <button className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors">
+                Cambiar Contraseña
+              </button>
+            </div>
           </div>
         )
 
@@ -358,18 +481,18 @@ const AdminDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-pink-50 to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-blue-50 to-sky-50">
       {/* Header */}
-      <div className="bg-white shadow-lg border-b-4 border-orange-400">
+      <div className="bg-white shadow-lg border-b-4 border-cyan-500">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-gradient-to-r from-orange-400 to-pink-400 rounded-full flex items-center justify-center">
+              <div className="w-12 h-12 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full flex items-center justify-center">
                 <Pets className="w-8 h-8 text-white" />
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">WebPerritos Admin</h1>
-                <p className="text-gray-600">Panel de Administración</p>
+                <p className="text-cyan-600 font-semibold">Municipalidad Provincial de Puno</p>
               </div>
             </div>
             
@@ -378,7 +501,7 @@ const AdminDashboard = () => {
                 <p className="text-sm text-gray-600">Administrador</p>
                 <p className="font-semibold text-gray-900">Sistema</p>
               </div>
-              <div className="w-10 h-10 bg-gradient-to-r from-orange-400 to-pink-400 rounded-full flex items-center justify-center">
+              <div className="w-10 h-10 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full flex items-center justify-center">
                 <span className="text-white font-bold">A</span>
               </div>
             </div>
@@ -440,7 +563,7 @@ const AdminDashboard = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {loading ? (
           <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500"></div>
           </div>
         ) : (
           renderContent()
@@ -451,9 +574,11 @@ const AdminDashboard = () => {
       <motion.button
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
-        className="fixed bottom-8 right-8 w-16 h-16 bg-gradient-to-r from-orange-400 to-pink-400 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center"
+        onClick={handlePrintMultiplePets}
+        className="fixed bottom-8 right-8 w-16 h-16 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center"
+        title="Imprimir Carnets"
       >
-        <Add className="w-8 h-8" />
+        <Print className="w-8 h-8" />
       </motion.button>
     </div>
   )

@@ -1,6 +1,14 @@
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
+// Validación estricta de JWT_SECRET
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET || JWT_SECRET === 'tu_jwt_secret_super_seguro_aqui_cambiar_en_produccion') {
+  console.error('❌ ERROR CRÍTICO: JWT_SECRET no está configurado correctamente en .env');
+  console.error('Genera uno con: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"');
+  process.exit(1);
+}
+
 // Generate JWT Token
 const generateToken = (user) => {
   return jwt.sign(
@@ -9,7 +17,7 @@ const generateToken = (user) => {
       email: user.email,
       dni: user.dni 
     },
-    process.env.JWT_SECRET || 'default_secret_key',
+    JWT_SECRET,
     { 
       expiresIn: '7d' 
     }
@@ -28,7 +36,7 @@ const verifyToken = (req, res, next) => {
   }
   
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret_key');
+    const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
     next();
   } catch (error) {
@@ -45,7 +53,7 @@ const optionalAuth = (req, res, next) => {
   
   if (token) {
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret_key');
+      const decoded = jwt.verify(token, JWT_SECRET);
       req.user = decoded;
     } catch (error) {
       // Token is invalid but we continue anyway since it's optional

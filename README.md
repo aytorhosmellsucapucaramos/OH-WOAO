@@ -22,9 +22,12 @@ Sistema municipal de registro de mascotas con carnet digital y código QR único
 
 ### Backend
 - Node.js + Express
-- SQLite3
+- MySQL (base de datos relacional)
 - Multer (subida de archivos)
 - QRCode generation
+- Winston (logging)
+- JWT (autenticación)
+- Helmet + Rate Limiting (seguridad)
 
 ## Instalación
 
@@ -33,12 +36,23 @@ Sistema municipal de registro de mascotas con carnet digital y código QR único
    npm run install-all
    ```
 
-2. **Ejecutar en modo desarrollo:**
+2. **Configurar Base de Datos MySQL:**
+   - Crear base de datos `pets_db`
+   - Copiar `server/.env.example` a `server/.env`
+   - Configurar credenciales de MySQL en `.env`
+   - La base de datos se inicializará automáticamente al arrancar
+
+3. **Generar JWT Secret (Obligatorio):**
+   ```bash
+   cd server && npm run generate-jwt
+   ```
+
+4. **Ejecutar en modo desarrollo:**
    ```bash
    npm run dev
    ```
 
-3. **Acceder a la aplicación:**
+5. **Acceder a la aplicación:**
    - Frontend: http://localhost:3000
    - Backend API: http://localhost:5000
 
@@ -52,8 +66,13 @@ webperritos/
 │   │   ├── pages/          # Páginas principales
 │   │   └── ...
 ├── server/                 # Backend Node.js
+│   ├── config/             # Configuración (DB, seguridad, logger)
+│   ├── controllers/        # Controladores de rutas
+│   ├── middleware/         # Middleware (auth, validación)
+│   ├── routes/             # Rutas de API
+│   ├── services/           # Lógica de negocio
 │   ├── uploads/            # Archivos subidos
-│   ├── pets.db            # Base de datos SQLite
+│   ├── logs/               # Archivos de log (Winston)
 │   └── index.js           # Servidor principal
 └── package.json           # Scripts principales
 ```
@@ -82,40 +101,78 @@ webperritos/
 - Diseño profesional para impresión
 - Formato optimizado para móviles
 
-## Base de Datos
+## Base de Datos MySQL
 
-### Tabla `adopters`
-- Información completa del adoptante
-- DNI único como identificador
-- Datos de contacto y ubicación
+### Tablas Principales:
+- **adopters** - Información del propietario (DNI, contacto)
+- **pets** - Datos de la mascota (CUI único, nombre, edad)
+- **pet_documents** - Fotos y QR del carnet
+- **pet_health_records** - Historial médico y vacunas
+- **stray_reports** - Reportes de perros callejeros
+- **users** - Sistema de autenticación
 
-### Tabla `pets`
-- Información de la mascota
-- CUI único con formato VARCHAR(15)
-- Relación con adoptante
-- Rutas de foto y código QR
+### Catálogos:
+- breeds, colors, sizes, temperaments
+- report_conditions, urgency_levels
+
+### Vista:
+- **view_pets_complete** - Vista consolidada de toda la información
 
 ## API Endpoints
 
+### Públicos:
 - `POST /api/register` - Registrar nueva mascota
 - `GET /api/search?q={dni|cui}` - Buscar mascotas
 - `GET /api/pet/{cui}` - Obtener información específica
+- `GET /api/stray-reports` - Listar reportes de callejeros
+- `POST /api/stray-reports` - Crear reporte de callejero
+
+### Autenticados (requieren JWT):
+- `POST /api/auth/login` - Iniciar sesión
+- `POST /api/auth/register` - Registrar usuario
+- `GET /api/stray-reports/my-reports` - Mis reportes
+- `GET /api/admin/*` - Panel administrativo
+
+### Estáticos:
 - `GET /api/uploads/{filename}` - Servir archivos subidos
 
 ## Comandos Útiles
 
 ```bash
-# Desarrollo completo
-npm run dev
+# Desde la raíz del proyecto
+npm run dev              # Arranca cliente y servidor
+npm run client           # Solo frontend
+npm run server           # Solo backend
+npm run build            # Build del cliente
+npm run install-all      # Instalar todas las dependencias
+```
 
-# Solo frontend
-npm run client
+## Seguridad
 
-# Solo backend
-npm run server
+- 🔒 **JWT Authentication** - Tokens seguros para autenticación
+- 🚪 **Rate Limiting** - Protección contra ataques de fuerza bruta
+- 🛡️ **Helmet** - Headers de seguridad configurados
+- 📝 **Winston Logger** - Sistema de logs profesional
+- ✅ **Joi Validation** - Validación de inputs
+- 🔐 **Bcrypt** - Hashing seguro de contraseñas
 
-# Build para producción
-npm run build
+## Scripts Útiles
+
+```bash
+# Servidor
+cd server
+npm run dev              # Desarrollo con nodemon
+npm run generate-jwt     # Generar JWT secret
+npm run security-check   # Verificar configuración
+npm run cleanup          # Limpiar archivos huérfanos
+npm run logs:view        # Ver logs en tiempo real
+npm test                 # Ejecutar tests
+
+# Cliente
+cd client
+npm run dev              # Desarrollo con Vite
+npm run build            # Build para producción
+npm run preview          # Previsualizar build
 ```
 
 ## Notas Técnicas
@@ -125,3 +182,4 @@ npm run build
 - Los códigos QR contienen toda la información en formato JSON
 - El sistema es completamente responsivo para móviles y PC
 - Todas las animaciones están optimizadas para rendimiento
+- Los logs se almacenan en `server/logs/` (combined.log, error.log)

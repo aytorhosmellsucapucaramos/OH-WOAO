@@ -2,29 +2,21 @@ import React from 'react'
 import { Navigate } from 'react-router-dom'
 
 const AdminRoute = ({ children }) => {
-  const adminSession = localStorage.getItem('adminSession')
+  const authToken = localStorage.getItem('authToken')
+  const userRole = localStorage.getItem('userRole')
   
-  if (!adminSession) {
-    return <Navigate to="/admin/login" replace />
+  // Si no hay token, redirigir a login
+  if (!authToken) {
+    return <Navigate to="/login" replace />
   }
 
-  try {
-    const session = JSON.parse(adminSession)
-    const loginTime = new Date(session.loginTime)
-    const now = new Date()
-    const hoursDiff = (now - loginTime) / (1000 * 60 * 60)
-
-    // Sesión expira después de 8 horas
-    if (hoursDiff > 8) {
-      localStorage.removeItem('adminSession')
-      return <Navigate to="/admin/login" replace />
-    }
-
-    return children
-  } catch (error) {
-    localStorage.removeItem('adminSession')
-    return <Navigate to="/admin/login" replace />
+  // Si no es admin, redirigir a dashboard de usuario
+  if (userRole !== 'admin') {
+    return <Navigate to="/dashboard" replace />
   }
+
+  // Si es admin y tiene token, permitir acceso
+  return children
 }
 
 export default AdminRoute
