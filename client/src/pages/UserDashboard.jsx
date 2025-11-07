@@ -7,17 +7,21 @@ import {
   Pagination, CardMedia, Tooltip, Fab, TextField, Tab, Tabs,
   List, ListItem, ListItemIcon, ListItemText, Badge, Stack,
   InputAdornment, FormControl, InputLabel, Select, MenuItem,
-  Autocomplete, Radio, RadioGroup, FormControlLabel, FormLabel
+  Autocomplete, Radio, RadioGroup, FormControlLabel, FormLabel,
+  Snackbar
 } from '@mui/material';
 import {
   Pets, Add, QrCode, Print, CheckCircle, Pending, Edit, Delete,
   LocationOn, Email, Phone, Home, Person, CalendarToday, Vaccines,
   Logout, Visibility, PhotoCamera, Save, Cancel, AccountCircle,
   HealthAndSafety, Cake, Palette, Description, History, Close,
-  Badge as BadgeIcon
+  Badge as BadgeIcon, CloudUpload, MedicalServices
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
+import { logout } from '../services/authService';
+import { getServerUrl, getUploadUrl } from '../utils/urls';
+import { getAllCatalogs } from '../services/catalogService';
 
 // Componente personalizado para manejar imágenes de perfil
 const ProfileAvatar = ({ user, profilePhotoPreview, size = 80, iconSize = 40, isEditMode = false }) => {
@@ -30,10 +34,16 @@ const ProfileAvatar = ({ user, profilePhotoPreview, size = 80, iconSize = 40, is
     imageUrl = profilePhotoPreview;
   } else if (user?.photo_path) {
     // En todos los demás casos, usar la imagen del servidor
-    imageUrl = `http://localhost:5000/api/uploads/${user.photo_path}`;
+    imageUrl = getUploadUrl(user.photo_path);
   }
 
-  // Usar directamente el Avatar de Material-UI que maneja mejor las imágenes
+  // Obtener la primera letra del nombre para el fallback
+  const getInitial = () => {
+    if (user?.first_name) {
+      return user.first_name.charAt(0).toUpperCase();
+    }
+    return 'U';
+  };
   
   return (
     <Avatar
@@ -41,12 +51,14 @@ const ProfileAvatar = ({ user, profilePhotoPreview, size = 80, iconSize = 40, is
       sx={{ 
         width: size, 
         height: size, 
-        bgcolor: imageUrl ? 'transparent' : 'primary.main',
+        bgcolor: imageUrl ? 'transparent' : '#2563eb',
         boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
-        border: '2px solid rgba(255, 255, 255, 0.2)'
+        border: '2px solid rgba(255, 255, 255, 0.2)',
+        fontSize: `${size / 2.5}px`,
+        fontWeight: 600
       }}
     >
-      {!imageUrl && <Person sx={{ fontSize: iconSize, color: 'white' }} />}
+      {!imageUrl && getInitial()}
     </Avatar>
   );
 };
@@ -65,9 +77,16 @@ const UserDashboard = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [tabValue, setTabValue] = useState(0);
   const [editingPet, setEditingPet] = useState({});
+  const [petDetailsOpen, setPetDetailsOpen] = useState(false);
+  const [selectedPetDetails, setSelectedPetDetails] = useState(null);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
   const [profileData, setProfileData] = useState({});
   const [profilePhoto, setProfilePhoto] = useState(null);
   const [profilePhotoPreview, setProfilePhotoPreview] = useState(null);
+  const [medicalHistories, setMedicalHistories] = useState([]);
+  const [breeds, setBreeds] = useState([]);
+  const [colors, setColors] = useState([]);
   
   const petsPerPage = 6; // 3 columns x 2 rows
 
@@ -113,17 +132,43 @@ const UserDashboard = () => {
   useEffect(() => {
     fetchUserData();
     fetchUserPets();
+    loadCatalogs();
   }, []);
+
+  // Bloquear scroll del body cuando cualquier modal esté abierto
+  useEffect(() => {
+    if (openEditPetDialog || petDetailsOpen || openProfileDialog || openCardDialog) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    
+    // Cleanup al desmontar
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [openEditPetDialog, petDetailsOpen, openProfileDialog, openCardDialog]);
+
+  const loadCatalogs = async () => {
+    try {
+      const catalogs = await getAllCatalogs();
+      setMedicalHistories(catalogs.medicalHistories || []);
+      setBreeds(catalogs.breeds || []);
+      setColors(catalogs.colors || []);
+    } catch (error) {
+      console.error('Error loading catalogs:', error);
+    }
+  };
 
   const fetchUserData = async () => {
     try {
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('token') || localStorage.getItem('authToken');
       if (!token) {
         navigate('/login');
         return;
       }
 
-      const response = await axios.get('http://localhost:5000/api/auth/me', {
+      const response = await axios.get(`${getServerUrl()}/api/auth/me`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -143,8 +188,8 @@ const UserDashboard = () => {
   const fetchUserPets = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await axios.get('http://localhost:5000/api/auth/my-pets', {
+      const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+      const response = await axios.get(`${getServerUrl()}/api/auth/my-pets`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -164,9 +209,8 @@ const UserDashboard = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('userEmail');
-    localStorage.removeItem('userId');
+    // Usar la función logout del authService para limpiar TODO el localStorage
+    logout();
     navigate('/');
   };
 
@@ -174,12 +218,40 @@ const UserDashboard = () => {
     window.open(`/pet/${pet.cui}`, '_blank');
   };
 
-  const handleEditPet = (pet) => {
-    setEditingPet({
+  const handleEditPet = async (pet) => {
+    console.log('🐕 Pet data received:', pet);
+    console.log('📋 Available medical histories:', medicalHistories);
+    
+    // Obtener el código del antecedente médico si existe medical_history_id
+    let medicalHistoryCode = 'none';
+    if (pet.medical_history_id) {
+      const history = medicalHistories.find(h => h.id === pet.medical_history_id);
+      console.log('🏥 Found medical history:', history);
+      if (history) {
+        medicalHistoryCode = history.code;
+      }
+    }
+    
+    // Extraer el color (puede venir como color o color_name)
+    const petColor = pet.color || pet.color_name || '';
+    // Extraer la raza (puede venir como breed o breed_name)
+    const petBreed = pet.breed || pet.breed_name || '';
+    
+    console.log('🎨 Color extracted:', petColor);
+    console.log('🐾 Breed extracted:', petBreed);
+    
+    const editData = {
       ...pet,
+      breed: petBreed,
+      color: petColor,
+      medicalHistory: medicalHistoryCode,
+      medicalHistoryDetails: pet.medical_history_details || '',
       hasVaccinationCard: pet.has_vaccination_card ? 'si' : 'no',
       hasRabiesVaccine: pet.has_rabies_vaccine ? 'si' : 'no'
-    });
+    };
+    
+    console.log('✏️ Edit data prepared:', editData);
+    setEditingPet(editData);
     setOpenEditPetDialog(true);
   };
 
@@ -187,9 +259,23 @@ const UserDashboard = () => {
     try {
       const token = localStorage.getItem('authToken');
       
+      // Preparar solo los campos que se pueden actualizar
+      const updateData = {
+        pet_name: editingPet.pet_name,
+        sex: editingPet.sex,
+        age: editingPet.age,
+        breed: editingPet.breed,
+        color: editingPet.color,
+        additional_features: editingPet.additional_features,
+        medicalHistory: editingPet.medicalHistory,
+        medicalHistoryDetails: editingPet.medicalHistoryDetails,
+        hasVaccinationCard: editingPet.hasVaccinationCard,
+        hasRabiesVaccine: editingPet.hasRabiesVaccine
+      };
+      
       const response = await axios.put(
-        `http://localhost:5000/api/auth/pet/${editingPet.id}`,
-        editingPet,
+        `${getServerUrl()}/api/auth/pet/${editingPet.id}`,
+        updateData,
         {
           headers: { 
             Authorization: `Bearer ${token}`
@@ -201,6 +287,8 @@ const UserDashboard = () => {
         fetchUserPets();
         setOpenEditPetDialog(false);
         setEditingPet({});
+        setSnackbarMessage('✅ Mascota editada exitosamente');
+        setSnackbarOpen(true);
       }
     } catch (err) {
       console.error('Error updating pet:', err);
@@ -210,23 +298,29 @@ const UserDashboard = () => {
 
   const handleUpdateProfile = async () => {
     try {
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+      
+      if (!token) {
+        setError('No hay sesión activa');
+        return;
+      }
+
       const formData = new FormData();
       
-      // Agregar datos del perfil
-      Object.keys(profileData).forEach(key => {
-        if (profileData[key]) {
-          formData.append(key, profileData[key]);
-        }
-      });
+      // Agregar solo los campos que se pueden editar
+      if (profileData.first_name) formData.append('first_name', profileData.first_name);
+      if (profileData.last_name) formData.append('last_name', profileData.last_name);
+      if (profileData.phone) formData.append('phone', profileData.phone);
+      if (profileData.email) formData.append('email', profileData.email);
+      if (profileData.address) formData.append('address', profileData.address);
       
-      // Agregar foto si se seleccionó una
+      // Agregar foto si se seleccionó una nueva
       if (profilePhoto) {
         formData.append('profilePhoto', profilePhoto);
       }
 
       const response = await axios.put(
-        'http://localhost:5000/api/auth/profile',
+        `${getServerUrl()}/api/auth/profile`,
         formData,
         {
           headers: { 
@@ -237,23 +331,29 @@ const UserDashboard = () => {
       );
 
       if (response.data.success) {
-        console.log('Usuario actualizado:', response.data.user);
-        // Actualizar tanto el estado del usuario como los datos del perfil
+        console.log('✅ Perfil actualizado:', response.data.user);
+        
+        // Actualizar el estado del usuario con los datos devueltos por el servidor
         setUser(response.data.user);
-        setProfileData({
-          ...profileData,
-          first_name: response.data.user.first_name,
-          last_name: response.data.user.last_name
-        });
-        setOpenProfileDialog(false);
+        setProfileData(response.data.user);
+        
+        // Limpiar estado de foto temporal
         setProfilePhoto(null);
         setProfilePhotoPreview(null);
-        // Recargar datos del usuario para asegurar sincronización
-        fetchUserData();
+        
+        // Cerrar el diálogo
+        setOpenProfileDialog(false);
+        
+        // Mostrar mensaje de éxito
+        setError('');
+        
+        // Recargar datos para sincronizar completamente
+        await fetchUserData();
       }
     } catch (err) {
-      console.error('Error updating profile:', err);
-      setError('Error al actualizar el perfil');
+      console.error('❌ Error actualizando perfil:', err);
+      const errorMsg = err.response?.data?.error || 'Error al actualizar el perfil';
+      setError(errorMsg);
     }
   };
 
@@ -398,21 +498,31 @@ const UserDashboard = () => {
         ))}
       </Box>
 
-    <Container maxWidth="xl" sx={{ py: 4, position: 'relative', zIndex: 1 }}>
+    <Container maxWidth="xl" sx={{ 
+      pt: { xs: 10, sm: 12, md: 14 }, 
+      pb: 6, 
+      position: 'relative', 
+      zIndex: 1 
+    }}>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
         {/* Header */}
-        <Paper sx={{ 
-          p: 3, 
-          mb: 3, 
-          background: 'rgba(255, 255, 255, 0.9)',
+        <Paper elevation={0} sx={{ 
+          p: { xs: 2, sm: 3, md: 4 }, 
+          mb: 4, 
+          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(249, 250, 251, 0.95) 100%)',
           backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(226, 232, 240, 0.8)',
-          borderRadius: 3,
-          boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
+          border: '1px solid rgba(226, 232, 240, 0.5)',
+          borderRadius: 4,
+          boxShadow: '0 10px 40px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.04)',
+          transition: 'all 0.3s ease',
+          '&:hover': {
+            boxShadow: '0 15px 50px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.06)',
+            transform: 'translateY(-2px)'
+          }
         }}>
           <Grid container spacing={3} alignItems="center">
             <Grid item>
@@ -493,33 +603,37 @@ const UserDashboard = () => {
             severity="info" 
             onClose={() => setShowAlert(false)}
             sx={{ 
-              mb: 3,
-              backgroundColor: 'rgba(255,255,255,0.9)',
+              mb: 4,
+              backgroundColor: 'rgba(239, 246, 255, 0.95)',
               backdropFilter: 'blur(20px)',
-              border: '1px solid rgba(226, 232, 240, 0.8)',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-              borderRadius: 2
+              border: '1px solid rgba(147, 197, 253, 0.4)',
+              boxShadow: '0 4px 20px rgba(59, 130, 246, 0.1)',
+              borderRadius: 3,
+              '& .MuiAlert-icon': {
+                color: '#3b82f6'
+              }
             }}
           >
-            <Typography variant="body1" sx={{ color: '#1e293b' }}>
+            <Typography variant="body1" sx={{ color: '#1e40af', fontWeight: 500 }}>
               📍 Recuerda recoger los carnets físicos de tus mascotas en la <strong>Gerencia Ambiental</strong>
             </Typography>
           </Alert>
         )}
 
         {/* Statistics Cards */}
-        <Grid container spacing={3} sx={{ mb: 3 }}>
+        <Grid container spacing={3} sx={{ mb: 4 }}>
           <Grid item xs={12} md={4}>
-            <Card sx={{
-              background: 'rgba(255, 255, 255, 0.9)',
+            <Card elevation={0} sx={{
+              background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(249, 250, 251, 0.95) 100%)',
               backdropFilter: 'blur(20px)',
-              border: '1px solid rgba(226, 232, 240, 0.8)',
+              border: '1px solid rgba(226, 232, 240, 0.5)',
               borderRadius: 3,
-              boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-              transition: 'all 0.3s ease',
+              boxShadow: '0 4px 15px rgba(0,0,0,0.05), 0 1px 4px rgba(0,0,0,0.03)',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
               '&:hover': {
-                transform: 'translateY(-3px)',
-                boxShadow: '0 8px 30px rgba(37, 99, 235, 0.15)',
+                transform: 'translateY(-5px)',
+                boxShadow: '0 12px 35px rgba(59, 130, 246, 0.12), 0 4px 12px rgba(0,0,0,0.06)',
+                borderColor: 'rgba(59, 130, 246, 0.3)',
               }
             }}>
               <CardContent>
@@ -647,22 +761,30 @@ const UserDashboard = () => {
                 whileHover={{ scale: 1.02 }}
                 transition={{ type: "spring", stiffness: 300 }}
               >
-                <Card sx={{ 
-                  height: '100%',
-                  minHeight: '380px',
-                  display: 'flex', 
-                  flexDirection: 'column',
-                  background: '#ffffff',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: 2,
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    transform: 'translateY(-5px)',
-                    boxShadow: '0 8px 20px rgba(37, 99, 235, 0.15)',
-                    borderColor: '#3b82f6',
-                  }
-                }}>
+                <Card 
+                  elevation={0} 
+                  onClick={() => {
+                    setSelectedPetDetails(pet);
+                    setPetDetailsOpen(true);
+                  }}
+                  sx={{ 
+                    height: '100%',
+                    minHeight: '400px',
+                    display: 'flex', 
+                    flexDirection: 'column',
+                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(249, 250, 251, 0.98) 100%)',
+                    border: '1px solid rgba(226, 232, 240, 0.6)',
+                    borderRadius: 3,
+                    boxShadow: '0 4px 15px rgba(0,0,0,0.05), 0 1px 4px rgba(0,0,0,0.03)',
+                    overflow: 'hidden',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    cursor: 'pointer',
+                    '&:hover': {
+                      transform: 'translateY(-8px)',
+                      boxShadow: '0 20px 40px rgba(59, 130, 246, 0.15), 0 4px 12px rgba(0,0,0,0.08)',
+                      borderColor: 'rgba(59, 130, 246, 0.4)',
+                    }
+                  }}>
                   {/* Imagen con tamaño fijo */}
                   <Box sx={{ 
                     height: '200px', 
@@ -674,7 +796,7 @@ const UserDashboard = () => {
                       <CardMedia
                         component="img"
                         height="200"
-                        image={`http://localhost:5000/api/uploads/${pet.photo_frontal_path || pet.photo_path}`}
+                        image={getUploadUrl(pet.photo_frontal_path || pet.photo_path)}
                         alt={pet.pet_name}
                         sx={{ 
                           objectFit: 'cover',
@@ -765,14 +887,20 @@ const UserDashboard = () => {
                     <Button
                       size="small"
                       startIcon={<QrCode />}
-                      onClick={() => handleViewCard(pet)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleViewCard(pet);
+                      }}
                     >
                       Ver Carnet
                     </Button>
                     <Button
                       size="small"
                       startIcon={<Edit />}
-                      onClick={() => handleEditPet(pet)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEditPet(pet);
+                      }}
                     >
                       Editar
                     </Button>
@@ -827,36 +955,85 @@ const UserDashboard = () => {
         )}
 
         {/* Edit Pet Dialog */}
-        <Dialog open={openEditPetDialog} onClose={() => setOpenEditPetDialog(false)} maxWidth="md" fullWidth>
-          <DialogTitle>
+        <Dialog 
+          open={openEditPetDialog} 
+          onClose={() => setOpenEditPetDialog(false)} 
+          maxWidth="md" 
+          fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: 3,
+              backgroundImage: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(249, 250, 251, 0.98) 100%)'
+            }
+          }}
+        >
+          <DialogTitle sx={{ pb: 1 }}>
             <Box display="flex" justifyContent="space-between" alignItems="center">
-              <Typography variant="h6">Editar Mascota</Typography>
+              <Box display="flex" alignItems="center" gap={1}>
+                <Pets sx={{ color: '#3b82f6', fontSize: 28 }} />
+                <Typography variant="h5" sx={{ fontWeight: 700, color: '#1e293b' }}>
+                  Editar Mascota
+                </Typography>
+              </Box>
               <IconButton onClick={() => setOpenEditPetDialog(false)}>
                 <Close />
               </IconButton>
             </Box>
           </DialogTitle>
-          <DialogContent>
-            <Grid container spacing={2} sx={{ mt: 1 }}>
+          <Divider />
+          <DialogContent sx={{ pt: 3 }}>
+            <Grid container spacing={3}>
+              {/* Sección: Información Básica */}
+              <Grid item xs={12}>
+                <Box display="flex" alignItems="center" gap={1} mb={1}>
+                  <BadgeIcon sx={{ color: '#3b82f6' }} />
+                  <Typography variant="h6" sx={{ fontWeight: 600, color: '#1e293b' }}>
+                    Información Básica
+                  </Typography>
+                </Box>
+                <Divider sx={{ mb: 2 }} />
+              </Grid>
+              
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
                   label="Nombre del Can"
                   value={editingPet.pet_name || ''}
                   onChange={(e) => setEditingPet({...editingPet, pet_name: e.target.value})}
+                  InputProps={{
+                    startAdornment: (
+                      <Pets sx={{ color: '#3b82f6', mr: 1 }} />
+                    )
+                  }}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Sexo del Can"
-                  value={editingPet.pet_last_name || ''}
-                  onChange={(e) => setEditingPet({...editingPet, pet_last_name: e.target.value})}
-                />
+                <FormControl component="fieldset" fullWidth>
+                  <FormLabel component="legend" sx={{ color: '#1e293b', fontWeight: 500 }}>Sexo del Can</FormLabel>
+                  <RadioGroup
+                    row
+                    value={editingPet.sex || ''}
+                    onChange={(e) => setEditingPet({...editingPet, sex: e.target.value})}
+                  >
+                    <FormControlLabel value="male" control={<Radio />} label="Macho ♂️" />
+                    <FormControlLabel value="female" control={<Radio />} label="Hembra ♀️" />
+                  </RadioGroup>
+                </FormControl>
               </Grid>
+              {/* Sección: Características Físicas */}
+              <Grid item xs={12}>
+                <Box display="flex" alignItems="center" gap={1} mb={1} mt={2}>
+                  <Palette sx={{ color: '#3b82f6' }} />
+                  <Typography variant="h6" sx={{ fontWeight: 600, color: '#1e293b' }}>
+                    Características Físicas
+                  </Typography>
+                </Box>
+                <Divider sx={{ mb: 2 }} />
+              </Grid>
+              
               <Grid item xs={12} sm={6}>
                 <Autocomplete
-                  options={defaultBreeds}
+                  options={breeds.map(b => b.name)}
                   value={editingPet.breed || ''}
                   onChange={(event, newValue) => {
                     setEditingPet({...editingPet, breed: newValue || ''});
@@ -864,20 +1041,12 @@ const UserDashboard = () => {
                   renderInput={(params) => (
                     <TextField {...params} label="Raza" fullWidth />
                   )}
+                  freeSolo={false}
                 />
               </Grid>
-              <Grid item xs={12} sm={3}>
-                <TextField
-                  fullWidth
-                  label="Edad (años)"
-                  type="number"
-                  value={editingPet.age || ''}
-                  onChange={(e) => setEditingPet({...editingPet, age: e.target.value})}
-                />
-              </Grid>
-              <Grid item xs={12} sm={3}>
+              <Grid item xs={12} sm={6}>
                 <Autocomplete
-                  options={defaultColors}
+                  options={colors.map(c => c.name)}
                   value={editingPet.color || ''}
                   onChange={(event, newValue) => {
                     setEditingPet({...editingPet, color: newValue || ''});
@@ -885,60 +1054,544 @@ const UserDashboard = () => {
                   renderInput={(params) => (
                     <TextField {...params} label="Color" fullWidth />
                   )}
+                  freeSolo={false}
                 />
               </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Fecha de Nacimiento"
+                  type="date"
+                  value={editingPet.birth_date ? new Date(editingPet.birth_date).toISOString().split('T')[0] : ''}
+                  onChange={(e) => {
+                    const birthDate = new Date(e.target.value);
+                    const today = new Date();
+                    const ageInMonths = Math.floor(
+                      (today.getFullYear() - birthDate.getFullYear()) * 12 +
+                      (today.getMonth() - birthDate.getMonth())
+                    );
+                    setEditingPet({...editingPet, birth_date: e.target.value, age: ageInMonths});
+                  }}
+                  InputLabelProps={{
+                    shrink: true,
+                  }}
+                  InputProps={{
+                    startAdornment: (
+                      <CalendarToday sx={{ color: '#3b82f6', mr: 1 }} />
+                    )
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Edad"
+                  value={editingPet.age ? `${editingPet.age} ${editingPet.age === 1 ? 'mes' : 'meses'}` : 'No especificada'}
+                  helperText={editingPet.age ? `Aproximadamente ${Math.floor(editingPet.age / 12)} año(s) y ${editingPet.age % 12} mes(es)` : 'Se calcula automáticamente desde la fecha de nacimiento'}
+                  disabled
+                  InputProps={{
+                    startAdornment: (
+                      <Cake sx={{ color: '#64748b', mr: 1 }} />
+                    ),
+                    readOnly: true
+                  }}
+                  sx={{
+                    '& .MuiInputBase-input.Mui-disabled': {
+                      WebkitTextFillColor: '#334155',
+                      fontWeight: 600
+                    }
+                  }}
+                />
+              </Grid>
+              {/* Sección: Información de Salud */}
+              <Grid item xs={12}>
+                <Box display="flex" alignItems="center" gap={1} mb={1} mt={2}>
+                  <HealthAndSafety sx={{ color: '#3b82f6' }} />
+                  <Typography variant="h6" sx={{ fontWeight: 600, color: '#1e293b' }}>
+                    Información de Salud
+                  </Typography>
+                </Box>
+                <Divider sx={{ mb: 2 }} />
+              </Grid>
+
+              {/* Carnet de Vacunación - Mitad izquierda */}
+              <Grid item xs={12} sm={6}>
+                <Paper elevation={2} sx={{ p: 2.5, borderRadius: 2, bgcolor: '#f8fafc', border: '1px solid #e2e8f0', height: '100%' }}>
+                  <Box display="flex" flexDirection="column" gap={1.5}>
+                    <Box display="flex" alignItems="center" gap={1.5}>
+                      <Box 
+                        sx={{ 
+                          width: 36, 
+                          height: 36, 
+                          borderRadius: '50%', 
+                          bgcolor: '#dbeafe', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          flexShrink: 0
+                        }}
+                      >
+                        <Vaccines sx={{ color: '#3b82f6', fontSize: 20 }} />
+                      </Box>
+                      <Box flex={1}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#1e293b', lineHeight: 1.2 }}>
+                          Carnet de Vacunación
+                        </Typography>
+                      </Box>
+                    </Box>
+                    
+                    <FormControl component="fieldset" fullWidth>
+                      <RadioGroup
+                        row
+                        value={editingPet.hasVaccinationCard || 'no'}
+                        onChange={(e) => setEditingPet({...editingPet, hasVaccinationCard: e.target.value})}
+                        sx={{ justifyContent: 'center' }}
+                      >
+                        <FormControlLabel 
+                          value="si" 
+                          control={<Radio size="small" />} 
+                          label="Sí" 
+                          sx={{ '& .MuiFormControlLabel-label': { fontSize: '0.875rem', fontWeight: 600 } }}
+                        />
+                        <FormControlLabel 
+                          value="no" 
+                          control={<Radio size="small" />} 
+                          label="No"
+                          sx={{ '& .MuiFormControlLabel-label': { fontSize: '0.875rem', fontWeight: 600 } }}
+                        />
+                      </RadioGroup>
+                    </FormControl>
+                  </Box>
+                  
+                  {/* Campo de subida si tiene carnet */}
+                  {editingPet.hasVaccinationCard === 'si' && (
+                    <Box sx={{ mt: 2, pt: 2, borderTop: '1px dashed #cbd5e1' }}>
+                      <Button
+                        variant="outlined"
+                        component="label"
+                        startIcon={<CloudUpload />}
+                        fullWidth
+                        size="small"
+                        sx={{ 
+                          borderColor: '#3b82f6',
+                          color: '#3b82f6',
+                          fontSize: '0.75rem',
+                          '&:hover': {
+                            borderColor: '#1e40af',
+                            bgcolor: '#eff6ff'
+                          }
+                        }}
+                      >
+                        {editingPet.vaccinationCardFile ? 'Cambiar' : 'Subir Carnet'}
+                        <input
+                          type="file"
+                          hidden
+                          accept="image/*,application/pdf"
+                          onChange={(e) => setEditingPet({...editingPet, vaccinationCardFile: e.target.files[0]})}
+                        />
+                      </Button>
+                      {editingPet.vaccinationCardFile && (
+                        <Box display="flex" alignItems="center" gap={0.5} mt={1} p={1} bgcolor="#ecfdf5" borderRadius={1}>
+                          <CheckCircle sx={{ color: '#059669', fontSize: 16 }} />
+                          <Typography variant="caption" sx={{ color: '#059669', fontWeight: 600 }}>
+                            {editingPet.vaccinationCardFile.name}
+                          </Typography>
+                        </Box>
+                      )}
+                    </Box>
+                  )}
+                </Paper>
+              </Grid>
+
+              {/* Vacuna Antirrábica - Mitad derecha */}
+              <Grid item xs={12} sm={6}>
+                <Paper elevation={2} sx={{ p: 2.5, borderRadius: 2, bgcolor: '#f8fafc', border: '1px solid #e2e8f0', height: '100%' }}>
+                  <Box display="flex" flexDirection="column" gap={1.5}>
+                    <Box display="flex" alignItems="center" gap={1.5}>
+                      <Box 
+                        sx={{ 
+                          width: 36, 
+                          height: 36, 
+                          borderRadius: '50%', 
+                          bgcolor: '#fef3c7', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          flexShrink: 0
+                        }}
+                      >
+                        <MedicalServices sx={{ color: '#f59e0b', fontSize: 20 }} />
+                      </Box>
+                      <Box flex={1}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#1e293b', lineHeight: 1.2 }}>
+                          Vacuna Antirrábica
+                        </Typography>
+                      </Box>
+                    </Box>
+                    
+                    <FormControl component="fieldset" fullWidth>
+                      <RadioGroup
+                        row
+                        value={editingPet.hasRabiesVaccine || 'no'}
+                        onChange={(e) => setEditingPet({...editingPet, hasRabiesVaccine: e.target.value})}
+                        sx={{ justifyContent: 'center' }}
+                      >
+                        <FormControlLabel 
+                          value="si" 
+                          control={<Radio size="small" />} 
+                          label="Sí"
+                          sx={{ '& .MuiFormControlLabel-label': { fontSize: '0.875rem', fontWeight: 600 } }}
+                        />
+                        <FormControlLabel 
+                          value="no" 
+                          control={<Radio size="small" />} 
+                          label="No"
+                          sx={{ '& .MuiFormControlLabel-label': { fontSize: '0.875rem', fontWeight: 600 } }}
+                        />
+                      </RadioGroup>
+                    </FormControl>
+                  </Box>
+                  
+                  {/* Campo de subida si tiene vacuna */}
+                  {editingPet.hasRabiesVaccine === 'si' && (
+                    <Box sx={{ mt: 2, pt: 2, borderTop: '1px dashed #cbd5e1' }}>
+                      <Button
+                        variant="outlined"
+                        component="label"
+                        startIcon={<CloudUpload />}
+                        fullWidth
+                        size="small"
+                        sx={{ 
+                          borderColor: '#f59e0b',
+                          color: '#f59e0b',
+                          fontSize: '0.75rem',
+                          '&:hover': {
+                            borderColor: '#d97706',
+                            bgcolor: '#fffbeb'
+                          }
+                        }}
+                      >
+                        {editingPet.rabiesVaccineCardFile ? 'Cambiar' : 'Subir Carnet'}
+                        <input
+                          type="file"
+                          hidden
+                          accept="image/*,application/pdf"
+                          onChange={(e) => setEditingPet({...editingPet, rabiesVaccineCardFile: e.target.files[0]})}
+                        />
+                      </Button>
+                      {editingPet.rabiesVaccineCardFile && (
+                        <Box display="flex" alignItems="center" gap={0.5} mt={1} p={1} bgcolor="#ecfdf5" borderRadius={1}>
+                          <CheckCircle sx={{ color: '#059669', fontSize: 16 }} />
+                          <Typography variant="caption" sx={{ color: '#059669', fontWeight: 600 }}>
+                            {editingPet.rabiesVaccineCardFile.name}
+                          </Typography>
+                        </Box>
+                      )}
+                    </Box>
+                  )}
+                </Paper>
+              </Grid>
+              
+              <Grid item xs={12}>
+                <FormControl fullWidth size="medium">
+                  <InputLabel>Antecedentes Médicos</InputLabel>
+                  <Select
+                    label="Antecedentes Médicos"
+                    value={editingPet.medicalHistory || 'none'}
+                    onChange={(e) => setEditingPet({...editingPet, medicalHistory: e.target.value})}
+                    MenuProps={{
+                      PaperProps: {
+                        style: {
+                          maxHeight: 300,
+                          width: 'auto'
+                        }
+                      }
+                    }}
+                  >
+                    {medicalHistories.map((history) => (
+                      <MenuItem key={history.id} value={history.code}>
+                        {history.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              
+              {/* Campo de texto para "Otros" antecedentes médicos */}
+              {editingPet.medicalHistory === 'other' && (
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={2}
+                    label="Especifique los antecedentes médicos"
+                    placeholder="Ej: Tiene tendencia a infecciones de oído, le recetaron dieta especial..."
+                    value={editingPet.medicalHistoryDetails || ''}
+                    onChange={(e) => setEditingPet({...editingPet, medicalHistoryDetails: e.target.value})}
+                    required
+                  />
+                </Grid>
+              )}
+
+              {/* Sección: Características Adicionales */}
+              <Grid item xs={12}>
+                <Box display="flex" alignItems="center" gap={1} mb={1} mt={2}>
+                  <Description sx={{ color: '#3b82f6' }} />
+                  <Typography variant="h6" sx={{ fontWeight: 600, color: '#1e293b' }}>
+                    Características Adicionales
+                  </Typography>
+                </Box>
+                <Divider sx={{ mb: 2 }} />
+              </Grid>
+
               <Grid item xs={12}>
                 <TextField
                   fullWidth
-                  label="Características Adicionales"
+                  label="Características y Comportamiento"
                   multiline
-                  rows={2}
+                  rows={3}
                   value={editingPet.additional_features || ''}
                   onChange={(e) => setEditingPet({...editingPet, additional_features: e.target.value})}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <FormControl component="fieldset">
-                  <FormLabel component="legend">¿Tiene Carnet de Vacunación?</FormLabel>
-                  <RadioGroup
-                    row
-                    value={editingPet.hasVaccinationCard || 'no'}
-                    onChange={(e) => setEditingPet({...editingPet, hasVaccinationCard: e.target.value})}
-                  >
-                    <FormControlLabel value="si" control={<Radio />} label="Sí" />
-                    <FormControlLabel value="no" control={<Radio />} label="No" />
-                  </RadioGroup>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <FormControl component="fieldset">
-                  <FormLabel component="legend">¿Tiene Vacuna Antirrábica?</FormLabel>
-                  <RadioGroup
-                    row
-                    value={editingPet.hasRabiesVaccine || 'no'}
-                    onChange={(e) => setEditingPet({...editingPet, hasRabiesVaccine: e.target.value})}
-                  >
-                    <FormControlLabel value="si" control={<Radio />} label="Sí" />
-                    <FormControlLabel value="no" control={<Radio />} label="No" />
-                  </RadioGroup>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Antecedentes Médicos"
-                  multiline
-                  rows={2}
-                  value={editingPet.medical_history || ''}
-                  onChange={(e) => setEditingPet({...editingPet, medical_history: e.target.value})}
+                  placeholder="Ej: Le gusta jugar con niños, tiene cicatriz en pata derecha, le teme a los truenos, muy juguetón..."
+                  inputProps={{ maxLength: 500 }}
+                  helperText={`${editingPet.additional_features?.length || 0}/500 caracteres`}
                 />
               </Grid>
             </Grid>
           </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setOpenEditPetDialog(false)}>Cancelar</Button>
-            <Button onClick={handleUpdatePet} variant="contained">
+          <Divider />
+          <DialogActions sx={{ p: 2.5 }}>
+            <Button 
+              onClick={() => setOpenEditPetDialog(false)}
+              sx={{ px: 3 }}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleUpdatePet} 
+              variant="contained"
+              startIcon={<Save />}
+              sx={{ 
+                px: 3,
+                background: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)',
+                boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%)',
+                  boxShadow: '0 6px 20px rgba(59, 130, 246, 0.4)',
+                }
+              }}
+            >
               Guardar Cambios
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Pet Details Modal */}
+        <Dialog 
+          open={petDetailsOpen} 
+          onClose={() => setPetDetailsOpen(false)} 
+          maxWidth="lg" 
+          fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: 3,
+              backgroundImage: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(249, 250, 251, 0.98) 100%)',
+              maxHeight: '90vh',
+              width: '95vw',
+              maxWidth: '900px'
+            }
+          }}
+        >
+          <DialogTitle>
+            <Box display="flex" justifyContent="space-between" alignItems="center">
+              <Box display="flex" alignItems="center" gap={2}>
+                <Pets sx={{ color: '#3b82f6', fontSize: 32 }} />
+                <Box>
+                  <Typography variant="h5" sx={{ fontWeight: 700, color: '#1e293b' }}>
+                    {selectedPetDetails?.pet_name}
+                  </Typography>
+                  <Typography variant="subtitle2" sx={{ color: '#64748b' }}>
+                    CUI: {selectedPetDetails?.cui}
+                  </Typography>
+                </Box>
+              </Box>
+              <IconButton onClick={() => setPetDetailsOpen(false)}>
+                <Close />
+              </IconButton>
+            </Box>
+          </DialogTitle>
+          <DialogContent dividers>
+            {selectedPetDetails && (
+              <Grid container spacing={3}>
+                {/* Imagen de la mascota */}
+                <Grid item xs={12} md={6}>
+                  <Paper elevation={2} sx={{ p: 2, borderRadius: 3, textAlign: 'center' }}>
+                    {(selectedPetDetails.photo_frontal_path || selectedPetDetails.photo_path) ? (
+                      <Box
+                        component="img"
+                        src={getUploadUrl(selectedPetDetails.photo_frontal_path || selectedPetDetails.photo_path)}
+                        alt={selectedPetDetails.pet_name}
+                        sx={{
+                          width: '100%',
+                          maxHeight: 400,
+                          objectFit: 'cover',
+                          borderRadius: 2
+                        }}
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.parentElement.innerHTML = `
+                            <div style="display: flex; align-items: center; justify-content: center; height: 200px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px;">
+                              <svg style="width: 60px; height: 60px; color: white;" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M4.5 12.75l7.5-7.5 7.5 7.5M6 10.5l6-6 6 6v9.75a.75.75 0 01-.75.75H6.75a.75.75 0 01-.75-.75V10.5z"/>
+                              </svg>
+                            </div>
+                          `;
+                        }}
+                      />
+                    ) : (
+                      <Box sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        height: 200,
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        borderRadius: 2
+                      }}>
+                        <Pets sx={{ fontSize: 60, color: 'white' }} />
+                      </Box>
+                    )}
+                  </Paper>
+                </Grid>
+                
+                {/* Información detallada */}
+                <Grid item xs={12} md={6}>
+                  <Stack spacing={2}>
+                    <Paper elevation={1} sx={{ p: 2, borderRadius: 2 }}>
+                      <Typography variant="h6" gutterBottom sx={{ color: '#1e293b', fontWeight: 600 }}>
+                        Información General
+                      </Typography>
+                      <Grid container spacing={2}>
+                        <Grid item xs={6}>
+                          <Typography variant="caption" sx={{ color: '#64748b' }}>Sexo</Typography>
+                          <Typography variant="body1" sx={{ fontWeight: 600 }}>{formatSex(selectedPetDetails.sex)}</Typography>
+                        </Grid>
+                        <Grid item xs={6}>
+                          <Typography variant="caption" sx={{ color: '#64748b' }}>Edad</Typography>
+                          <Typography variant="body1" sx={{ fontWeight: 600 }}>{formatAge(selectedPetDetails.age)}</Typography>
+                        </Grid>
+                        <Grid item xs={6}>
+                          <Typography variant="caption" sx={{ color: '#64748b' }}>Raza</Typography>
+                          <Typography variant="body1" sx={{ fontWeight: 600 }}>{selectedPetDetails.breed_name || selectedPetDetails.breed || 'N/A'}</Typography>
+                        </Grid>
+                        <Grid item xs={6}>
+                          <Typography variant="caption" sx={{ color: '#64748b' }}>Color</Typography>
+                          <Typography variant="body1" sx={{ fontWeight: 600 }}>{selectedPetDetails.color_name || selectedPetDetails.color || 'N/A'}</Typography>
+                        </Grid>
+                        <Grid item xs={12}>
+                          <Typography variant="caption" sx={{ color: '#64748b' }}>Antecedentes Médicos</Typography>
+                          <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                            {(() => {
+                              if (selectedPetDetails.medical_history_id) {
+                                const history = medicalHistories.find(h => h.id === selectedPetDetails.medical_history_id);
+                                if (history) {
+                                  if (history.code === 'other' && selectedPetDetails.medical_history_details) {
+                                    return `${history.name}: ${selectedPetDetails.medical_history_details}`;
+                                  }
+                                  return history.name;
+                                }
+                              }
+                              return 'Ninguno';
+                            })()}
+                          </Typography>
+                        </Grid>
+                      </Grid>
+                    </Paper>
+                    
+                    <Paper elevation={1} sx={{ p: 2, borderRadius: 2 }}>
+                      <Typography variant="h6" gutterBottom sx={{ color: '#1e293b', fontWeight: 600 }}>
+                        Estado de Salud
+                      </Typography>
+                      <Stack spacing={1}>
+                        <Box display="flex" justifyContent="space-between">
+                          <Typography>Carnet de Vacunación:</Typography>
+                          <Chip 
+                            label={selectedPetDetails.has_vaccination_card ? 'Sí tiene' : 'No tiene'} 
+                            color={selectedPetDetails.has_vaccination_card ? 'success' : 'default'}
+                            size="small"
+                          />
+                        </Box>
+                        <Box display="flex" justifyContent="space-between">
+                          <Typography>Vacuna Antirrábica:</Typography>
+                          <Chip 
+                            label={selectedPetDetails.has_rabies_vaccine ? 'Sí tiene' : 'No tiene'} 
+                            color={selectedPetDetails.has_rabies_vaccine ? 'success' : 'default'}
+                            size="small"
+                          />
+                        </Box>
+                        <Box display="flex" justifyContent="space-between">
+                          <Typography>Estado del Carnet:</Typography>
+                          <Chip 
+                            label={selectedPetDetails.card_printed ? 'Impreso' : 'Pendiente'} 
+                            color={selectedPetDetails.card_printed ? 'success' : 'warning'}
+                            size="small"
+                          />
+                        </Box>
+                      </Stack>
+                    </Paper>
+                    
+                    {selectedPetDetails.additional_features && (
+                      <Paper elevation={1} sx={{ p: 2, borderRadius: 2 }}>
+                        <Typography variant="h6" gutterBottom sx={{ color: '#1e293b', fontWeight: 600 }}>
+                          Características Adicionales
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: '#4b5563' }}>
+                          {selectedPetDetails.additional_features}
+                        </Typography>
+                      </Paper>
+                    )}
+                  </Stack>
+                </Grid>
+                
+                {/* Fecha de registro */}
+                <Grid item xs={12}>
+                  <Paper elevation={1} sx={{ p: 2, borderRadius: 2, textAlign: 'center', bgcolor: '#f8fafc' }}>
+                    <Typography variant="caption" sx={{ color: '#64748b' }}>
+                      Registrado el: {new Date(selectedPetDetails.created_at).toLocaleDateString('es-ES', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </Typography>
+                  </Paper>
+                </Grid>
+              </Grid>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setPetDetailsOpen(false)}>Cerrar</Button>
+            <Button 
+              variant="contained" 
+              startIcon={<QrCode />}
+              onClick={() => {
+                setPetDetailsOpen(false);
+                handleViewCard(selectedPetDetails);
+              }}
+              sx={{ 
+                background: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)',
+                color: 'white'
+              }}
+            >
+              Ver Carnet
+            </Button>
+            <Button 
+              variant="outlined" 
+              startIcon={<Edit />}
+              onClick={() => {
+                setPetDetailsOpen(false);
+                handleEditPet(selectedPetDetails);
+              }}
+            >
+              Editar
             </Button>
           </DialogActions>
         </Dialog>
@@ -966,17 +1619,17 @@ const UserDashboard = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.1 }}
             >
-            <Box sx={{ textAlign: 'center', mb: 3 }}>
+            <Box sx={{ textAlign: 'center', mb: 3, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <motion.div
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <Box sx={{ mx: 'auto', cursor: 'pointer' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
                   <ProfileAvatar 
                     user={user} 
                     profilePhotoPreview={profilePhotoPreview}
-                    size={100}
-                    iconSize={50}
+                    size={120}
+                    iconSize={60}
                     isEditMode={true}
                   />
                 </Box>
@@ -990,9 +1643,23 @@ const UserDashboard = () => {
               />
               <label htmlFor="profile-photo-upload">
                 <Button
-                  variant="outlined"
+                  variant="contained"
                   component="span"
                   startIcon={<PhotoCamera />}
+                  sx={{
+                    background: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)',
+                    color: 'white',
+                    px: 3,
+                    py: 1,
+                    fontWeight: 600,
+                    boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)',
+                    '&:hover': {
+                      background: 'linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%)',
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 6px 20px rgba(59, 130, 246, 0.4)',
+                    },
+                    transition: 'all 0.3s ease'
+                  }}
                 >
                   Cambiar Foto
                 </Button>
@@ -1061,6 +1728,24 @@ const UserDashboard = () => {
         </Dialog>
           )}
         </AnimatePresence>
+
+        {/* Snackbar para notificaciones */}
+        <Snackbar
+          open={snackbarOpen}
+          autoHideDuration={3000}
+          onClose={() => setSnackbarOpen(false)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+          message={snackbarMessage}
+          sx={{
+            '& .MuiSnackbarContent-root': {
+              backgroundColor: '#10b981',
+              color: 'white',
+              fontSize: '1rem',
+              fontWeight: 600,
+              boxShadow: '0 8px 20px rgba(16, 185, 129, 0.4)'
+            }
+          }}
+        />
       </motion.div>
     </Container>
     </Box>

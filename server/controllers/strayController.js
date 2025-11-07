@@ -50,6 +50,12 @@ exports.create = async (req, res) => {
     const reporterId = req.user ? req.user.id : null;
     const photoPath = req.file ? req.file.filename : null;
 
+    // ❗ VALIDACIÓN OBLIGATORIA: La foto es requerida
+    if (!photoPath) {
+      await connection.rollback();
+      return sendError(res, 'La foto del perro es obligatoria para crear el reporte', 400);
+    }
+
     // Validar ubicación (warning si está fuera de Puno, pero permitir)
     const isInPuno = latitude >= -16.5 && latitude <= -15.0 && 
                      longitude >= -70.5 && longitude <= -69.5;

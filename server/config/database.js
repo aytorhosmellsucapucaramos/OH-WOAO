@@ -40,7 +40,7 @@ async function initializeDatabase() {
     await connection.query(`USE ${process.env.DB_NAME || 'pets_db'}`);
     
     // Read and execute the V3 init SQL file with support for stored routines
-    const initSQL = fs.readFileSync(path.join(__dirname, '../database/init_database_v3.sql'), 'utf8');
+    const initSQL = fs.readFileSync(path.join(__dirname, '../database/database_complete.sql'), 'utf8');
 
     // Build statements safely: handle CREATE PROCEDURE/FUNCTION/TRIGGER blocks
     const lines = initSQL.split(/\r?\n/);
@@ -427,9 +427,58 @@ async function initializeDatabase() {
         GROUP BY p.id
       `);
       
-      console.log('✅ Vista actualizada con tablas especializadas');
+      console.log('✅ Vista view_pets_complete actualizada con tablas especializadas');
     } catch (viewError) {
-      console.error('⚠️  Error al actualizar vista:', viewError.message);
+      console.error('⚠️  Error al actualizar vista view_pets_complete:', viewError.message);
+      // No es crítico, continuar
+    }
+    
+    // =====================================================
+    // ACTUALIZAR VISTA view_stray_reports_complete
+    // =====================================================
+    console.log('🔄 Actualizando vista view_stray_reports_complete...');
+    
+    try {
+      // Eliminar vista existente
+      await connection.query('DROP VIEW IF EXISTS view_stray_reports_complete');
+      
+      // Crear vista actualizada con datos del usuario reportador
+      await connection.query(`
+        CREATE VIEW view_stray_reports_complete AS
+        SELECT 
+            sr.*,
+            b.name as breed_name,
+            s.name as size_name,
+            s.code as size_code,
+            t.name as temperament_name,
+            t.code as temperament_code,
+            t.color as temperament_color,
+            rc.name as condition_name,
+            rc.code as condition_code,
+            ul.name as urgency_name,
+            ul.code as urgency_code,
+            ul.color as urgency_color,
+            ul.priority as urgency_priority,
+            a.first_name as reporter_first_name,
+            a.last_name as reporter_last_name,
+            a.phone as reporter_phone_from_user,
+            a.email as reporter_email_from_user,
+            GROUP_CONCAT(c.name SEPARATOR ', ') as colors
+        FROM stray_reports sr
+        LEFT JOIN breeds b ON sr.breed_id = b.id
+        LEFT JOIN sizes s ON sr.size_id = s.id
+        LEFT JOIN temperaments t ON sr.temperament_id = t.id
+        LEFT JOIN report_conditions rc ON sr.condition_id = rc.id
+        LEFT JOIN urgency_levels ul ON sr.urgency_level_id = ul.id
+        LEFT JOIN adopters a ON sr.reporter_id = a.id
+        LEFT JOIN stray_report_colors src ON sr.id = src.stray_report_id
+        LEFT JOIN colors c ON src.color_id = c.id
+        GROUP BY sr.id
+      `);
+      
+      console.log('✅ Vista view_stray_reports_complete actualizada con datos de usuario');
+    } catch (viewError) {
+      console.error('⚠️  Error al actualizar vista view_stray_reports_complete:', viewError.message);
       // No es crítico, continuar
     }
     

@@ -10,7 +10,7 @@ import {
   Button, Paper, IconButton, Dialog, DialogContent, DialogActions, RadioGroup,
   FormControlLabel, Radio
 } from '@mui/material';
-import { Pets, Description, PhotoCamera, CameraAlt, Close } from '@mui/icons-material';
+import { Pets, Description, PhotoCamera, CameraAlt, Close, ColorLens, Straighten, MoodOutlined, HealthAndSafety, PriorityHigh, Wc } from '@mui/icons-material';
 import { getAllCatalogs } from '../../../services/catalogService';
 
 // Todos los catálogos se cargan dinámicamente desde la BD
@@ -143,47 +143,70 @@ const ReportFormBasic = ({ formData, onUpdate, errors }) => {
 
   return (
     <Box>
-      <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
-        <Pets /> Información del Perro
+      <Typography 
+        variant="h5" 
+        sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 1.5, 
+          mb: 4,
+          color: '#1e293b',
+          fontWeight: 600
+        }}
+      >
+        <Pets sx={{ color: '#3b82f6', fontSize: 28 }} /> 
+        Información del Perro
       </Typography>
 
       <Grid container spacing={3}>
-        {/* Raza - Autocomplete desde BD */}
+        {/* Raza y Tamaño en una fila */}
         <Grid item xs={12} sm={6}>
           <Autocomplete
             options={breeds}
             getOptionLabel={(option) => option.name || option}
             value={breeds.find(b => b.name === formData.breed) || null}
             onChange={(e, newValue) => onUpdate('breed', newValue?.name || '')}
-            freeSolo
             renderInput={(params) => (
               <TextField
                 {...params}
                 label="Raza"
                 error={!!errors.breed}
-                helperText={errors.breed}
+                helperText={errors.breed || "Selecciona de la lista"}
                 required
+                InputProps={{
+                  ...params.InputProps,
+                  startAdornment: (
+                    <Pets sx={{ color: '#3b82f6', mr: 1, ml: 1 }} />
+                  )
+                }}
               />
             )}
           />
         </Grid>
 
-        {/* Tamaño - Desde BD */}
+        {/* Tamaño - Mejor ubicación */}
         <Grid item xs={12} sm={6}>
-          <FormControl fullWidth>
-            <InputLabel>Tamaño</InputLabel>
-            <Select
-              value={formData.size}
-              onChange={(e) => onUpdate('size', e.target.value)}
-              label="Tamaño"
-            >
-              {sizes.map(size => (
-                <MenuItem key={size.id} value={size.code}>
-                  {size.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+            <Straighten sx={{ color: '#3b82f6', fontSize: 20 }} />
+            <Typography sx={{ fontWeight: 600, color: '#1e293b' }}>
+              Tamaño *
+            </Typography>
+          </Box>
+          <RadioGroup
+            row
+            value={formData.size}
+            onChange={(e) => onUpdate('size', e.target.value)}
+            sx={{ mt: 0.5 }}
+          >
+            <FormControlLabel value="small" control={<Radio />} label="Pequeño" />
+            <FormControlLabel value="medium" control={<Radio />} label="Mediano" />
+            <FormControlLabel value="large" control={<Radio />} label="Grande" />
+          </RadioGroup>
+          {errors.size && (
+            <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
+              {errors.size}
+            </Typography>
+          )}
         </Grid>
 
         {/* Colores - Autocomplete múltiple desde BD */}
@@ -203,6 +226,15 @@ const ReportFormBasic = ({ formData, onUpdate, errors }) => {
                 label="Colores"
                 error={!!errors.colors}
                 helperText={errors.colors || "Puedes seleccionar múltiples colores"}
+                InputProps={{
+                  ...params.InputProps,
+                  startAdornment: (
+                    <>
+                      <ColorLens sx={{ color: '#3b82f6', mr: 1, ml: 1 }} />
+                      {params.InputProps.startAdornment}
+                    </>
+                  )
+                }}
               />
             )}
             renderTags={(value, getTagProps) =>
@@ -218,82 +250,105 @@ const ReportFormBasic = ({ formData, onUpdate, errors }) => {
           />
         </Grid>
 
-        {/* Temperamento - Desde BD */}
-        <Grid item xs={12} sm={6}>
-          <FormControl fullWidth>
-            <InputLabel>Temperamento</InputLabel>
-            <Select
-              value={formData.temperament}
-              onChange={(e) => onUpdate('temperament', e.target.value)}
-              label="Temperamento"
-            >
-              {temperaments.map(temp => (
-                <MenuItem key={temp.id} value={temp.code}>
-                  {temp.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+        {/* Temperamento, Condición y Urgencia en una fila */}
+        <Grid item xs={12} md={4}>
+          <TextField
+            select
+            fullWidth
+            label="Temperamento"
+            value={formData.temperament}
+            onChange={(e) => onUpdate('temperament', e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <MoodOutlined sx={{ color: '#3b82f6', mr: 1 }} />
+              )
+            }}
+          >
+            <MenuItem value="">
+              <em>Seleccionar...</em>
+            </MenuItem>
+            {temperaments.map(temp => (
+              <MenuItem key={temp.id} value={temp.code}>
+                {temp.name}
+              </MenuItem>
+            ))}
+          </TextField>
         </Grid>
 
-        {/* Condición - Desde BD */}
-        <Grid item xs={12} sm={6}>
-          <FormControl fullWidth>
-            <InputLabel>Condición</InputLabel>
-            <Select
-              value={formData.condition}
-              onChange={(e) => onUpdate('condition', e.target.value)}
-              label="Condición"
-            >
-              {conditions.map(cond => (
-                <MenuItem key={cond.id} value={cond.code}>
-                  {cond.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+        <Grid item xs={12} md={4}>
+          <TextField
+            select
+            fullWidth
+            label="Condición"
+            value={formData.condition}
+            onChange={(e) => onUpdate('condition', e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <HealthAndSafety sx={{ color: '#3b82f6', mr: 1 }} />
+              )
+            }}
+          >
+            <MenuItem value="">
+              <em>Seleccionar...</em>
+            </MenuItem>
+            {conditions.map(cond => (
+              <MenuItem key={cond.id} value={cond.code}>
+                {cond.name}
+              </MenuItem>
+            ))}
+          </TextField>
         </Grid>
 
-        {/* Urgencia - Desde BD */}
+        <Grid item xs={12} md={4}>
+          <TextField
+            select
+            fullWidth
+            label="Nivel de Urgencia"
+            value={formData.urgency}
+            onChange={(e) => onUpdate('urgency', e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <PriorityHigh sx={{ color: '#3b82f6', mr: 1 }} />
+              )
+            }}
+          >
+            <MenuItem value="">
+              <em>Seleccionar...</em>
+            </MenuItem>
+            {urgencies.map(urg => (
+              <MenuItem key={urg.id} value={urg.code}>
+                {urg.name}
+              </MenuItem>
+            ))}
+          </TextField>
+        </Grid>
+
+        {/* Género - En la misma fila */}
         <Grid item xs={12}>
-          <FormControl fullWidth>
-            <InputLabel>Nivel de Urgencia</InputLabel>
-            <Select
-              value={formData.urgency}
-              onChange={(e) => onUpdate('urgency', e.target.value)}
-              label="Nivel de Urgencia"
-            >
-              {urgencies.map(urg => (
-                <MenuItem key={urg.id} value={urg.code}>
-                  {urg.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Grid>
-
-        {/* Género */}
-        <Grid item xs={12}>
-          <Typography gutterBottom sx={{ fontWeight: 500 }}>
-            Género
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+            <Wc sx={{ color: '#3b82f6', fontSize: 20 }} />
+            <Typography sx={{ fontWeight: 600, color: '#1e293b' }}>
+              Género
+            </Typography>
+          </Box>
           <RadioGroup
             row
             value={formData.gender}
             onChange={(e) => onUpdate('gender', e.target.value)}
+            sx={{ justifyContent: 'flex-start' }}
           >
-            <FormControlLabel value="male" control={<Radio />} label="Macho ♂️" />
-            <FormControlLabel value="female" control={<Radio />} label="Hembra ♀️" />
-            <FormControlLabel value="unknown" control={<Radio />} label="No sé ❓" />
+            <FormControlLabel value="male" control={<Radio />} label="Macho" />
+            <FormControlLabel value="female" control={<Radio />} label="Hembra" />
+            <FormControlLabel value="unknown" control={<Radio />} label="No sé" />
           </RadioGroup>
         </Grid>
 
-        {/* Foto del perro */}
-        <Grid item xs={12}>
-          <Typography variant="h6" gutterBottom sx={{ fontWeight: 500 }}>
-            📸 Foto del Perro
+        {/* Foto del perro y Descripción - Lado a Lado */}
+        <Grid item xs={12} md={6}>
+          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 1 }}>
+            <PhotoCamera sx={{ color: '#3b82f6' }} /> Foto del Perro <Typography component="span" sx={{ color: '#ef4444', ml: 0.5 }}>*</Typography>
           </Typography>
-          <Paper elevation={2} sx={{ p: 3, textAlign: 'center', backgroundColor: '#f5f5f5' }}>
+          <Paper elevation={2} sx={{ p: 3, textAlign: 'center', backgroundColor: errors.photo ? '#fff5f5' : '#f5f5f5', border: errors.photo ? '2px solid #ef4444' : 'none' }}>
             {!photoPreview ? (
               <>
                 <Button
@@ -301,9 +356,19 @@ const ReportFormBasic = ({ formData, onUpdate, errors }) => {
                   startIcon={<CameraAlt />}
                   onClick={openCamera}
                   fullWidth
-                  sx={{ mb: 2, backgroundColor: '#4CAF50', '&:hover': { backgroundColor: '#45a049' } }}
+                  sx={{ 
+                    mb: 2, 
+                    background: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)',
+                    color: 'white',
+                    fontWeight: 600,
+                    '&:hover': { 
+                      background: 'linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%)',
+                      transform: 'translateY(-2px)'
+                    },
+                    transition: 'all 0.3s ease'
+                  }}
                 >
-                  📸 Abrir Cámara
+                  Abrir Cámara
                 </Button>
                 <input
                   ref={fileInputRef}
@@ -317,12 +382,20 @@ const ReportFormBasic = ({ formData, onUpdate, errors }) => {
                   startIcon={<PhotoCamera />}
                   onClick={() => fileInputRef.current?.click()}
                   fullWidth
-                  sx={{ borderColor: '#2196F3', color: '#2196F3' }}
+                  sx={{ 
+                    borderColor: '#3b82f6', 
+                    color: '#3b82f6',
+                    fontWeight: 600,
+                    '&:hover': {
+                      borderColor: '#1e40af',
+                      backgroundColor: 'rgba(59, 130, 246, 0.05)'
+                    }
+                  }}
                 >
-                  📁 Subir desde Galería
+                  Subir desde Galería
                 </Button>
-                <Typography variant="caption" display="block" sx={{ mt: 2, color: 'text.secondary' }}>
-                  La foto ayuda a identificar mejor al perro
+                <Typography variant="caption" display="block" sx={{ mt: 2, color: errors.photo ? '#ef4444' : 'text.secondary', fontWeight: errors.photo ? 600 : 400 }}>
+                  {errors.photo || '⚠️ La foto es obligatoria para ayudar a identificar al perro'}
                 </Typography>
               </>
             ) : (
@@ -333,15 +406,15 @@ const ReportFormBasic = ({ formData, onUpdate, errors }) => {
                   alt="Preview"
                   sx={{
                     width: '100%',
-                    maxHeight: 300,
+                    height: 300,
                     objectFit: 'cover',
                     borderRadius: 2,
                     mb: 2,
                     border: '2px solid #4CAF50'
                   }}
                 />
-                <Typography variant="body2" color="success.main" sx={{ mb: 2, fontWeight: 600 }}>
-                  ✅ Foto capturada correctamente
+                <Typography variant="body2" sx={{ mb: 2, fontWeight: 600, color: '#10b981' }}>
+                  Foto capturada correctamente
                 </Typography>
                 <Button
                   variant="text"
@@ -351,23 +424,34 @@ const ReportFormBasic = ({ formData, onUpdate, errors }) => {
                     setPhotoPreview(null);
                   }}
                 >
-                  🗑️ Eliminar foto
+                  Eliminar foto
                 </Button>
               </Box>
             )}
           </Paper>
         </Grid>
 
-        {/* Descripción */}
-        <Grid item xs={12}>
+        {/* Descripción - Al lado de la foto */}
+        <Grid item xs={12} md={6}>
+          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Description sx={{ color: '#3b82f6' }} /> Descripción
+          </Typography>
           <TextField
             fullWidth
-            label="Descripción Adicional"
+            label="Descripción del Perro"
             multiline
-            rows={4}
+            rows={15}
             value={formData.description}
             onChange={(e) => onUpdate('description', e.target.value)}
-            placeholder="Describe características únicas, comportamiento, ubicación exacta, etc."
+            placeholder="Describe características únicas, comportamiento, estado de salud, ubicación exacta donde lo viste, etc."
+            required
+            error={!!errors.description}
+            helperText={errors.description || "Esta información es importante para ayudar al perro"}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                alignItems: 'flex-start'
+              }
+            }}
           />
         </Grid>
       </Grid>
@@ -415,14 +499,18 @@ const ReportFormBasic = ({ formData, onUpdate, errors }) => {
           <Button onClick={closeCamera} color="inherit">
             Cancelar
           </Button>
-          <Button 
-            variant="contained" 
-            startIcon={<PhotoCamera />}
-            onClick={capturePhoto}
-            color="primary"
-          >
-            📸 Capturar Foto
-          </Button>
+            <Button 
+              variant="contained" 
+              startIcon={<PhotoCamera />}
+              onClick={capturePhoto}
+              sx={{
+                background: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)',
+                color: 'white',
+                fontWeight: 600
+              }}
+            >
+              Capturar Foto
+            </Button>
         </DialogActions>
       </Dialog>
     </Box>

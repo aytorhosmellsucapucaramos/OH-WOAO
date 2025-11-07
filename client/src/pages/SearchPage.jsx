@@ -37,67 +37,142 @@ const SearchPage = () => {
 
 
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
-        {/* Header con logos simétricos */}
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 3, mb: 4 }}>
-          <Typography
-            variant="h4"
-            textAlign="center"
-            sx={{
-              color: '#1e293b',
-              fontWeight: 700,
-              letterSpacing: '-0.5px',
-              minWidth: '280px'
+    <Box
+      sx={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+        pt: { xs: 10, sm: 11, md: 12 }, // Padding top para evitar el navbar
+        pb: { xs: 10, md: 4 } // Padding bottom para el BottomNav en móvil
+      }}
+    >
+      <Container maxWidth="lg">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          {/* Header mejorado */}
+          <Box 
+            sx={{ 
+              textAlign: 'center',
+              mb: { xs: 4, md: 5 }
             }}
           >
-            Buscar Mascota
-          </Typography>
-        </Box>
+            {/*<Box
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: { xs: 60, md: 70 },
+                height: { xs: 60, md: 70 },
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                boxShadow: '0 8px 24px rgba(37, 99, 235, 0.3)',
+                mb: 2
+              }}
+            >
+               <Search sx={{ fontSize: { xs: 30, md: 36 }, color: 'white' }} />
+            </Box>*/}
+            <Typography
+              variant="h3"
+              sx={{
+                color: '#1e293b',
+                fontWeight: 800,
+                fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
+                mb: 1.5,
+                background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text'
+              }}
+            >
+              Buscar Mascota
+            </Typography>
+            <Typography
+              variant="h6"
+              sx={{
+                color: '#64748b',
+                fontWeight: 500,
+                fontSize: { xs: '1rem', md: '1.1rem' },
+                maxWidth: '600px',
+                mx: 'auto'
+              }}
+            >
+              Busca mascotas registradas por DNI del propietario o CUI de la mascota
+            </Typography>
+          </Box>
 
         <Card
+          elevation={0}
           sx={{
-            background: '#ffffff',
-            border: '1px solid #e5e7eb',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-            mb: 3
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(226, 232, 240, 0.5)',
+            boxShadow: '0 10px 40px rgba(0,0,0,0.08)',
+            borderRadius: 3,
+            mb: 4,
+            transition: 'all 0.3s ease',
+            '&:hover': {
+              boxShadow: '0 15px 50px rgba(0,0,0,0.1)'
+            }
           }}
         >
-          <CardContent sx={{ p: 4 }}>
+          <CardContent sx={{ p: { xs: 3, sm: 4, md: 5 } }}>
             <form onSubmit={handleSearch}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                <Search sx={{ mr: 1, color: 'primary.main' }} />
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                  Buscar por DNI o Código CUI
-                </Typography>
-              </Box>
+              <Typography 
+                variant="h6" 
+                sx={{ 
+                  fontWeight: 600,
+                  color: '#1e293b',
+                  mb: 3,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1
+                }}
+              >
+                <Search sx={{ color: '#3b82f6' }} />
+                Ingresa los datos de búsqueda
+              </Typography>
 
-              <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+              <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, mb: 2 }}>
                 <TextField
                   fullWidth
-                  label="Ingrese DNI del adoptante o CUI de la mascota"
+                  label="DNI del propietario o CUI de la mascota"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Ej: 12345678 o 43451826-7"
                   required
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      '&:hover fieldset': {
+                        borderColor: '#3b82f6'
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: '#2563eb',
+                        borderWidth: 2
+                      }
+                    }
+                  }}
                 />
                 <Button
                   type="submit"
                   variant="contained"
                   disabled={loading}
+                  size="large"
                   sx={{
-                    minWidth: 120,
-                    background: '#2563eb',
+                    minWidth: { xs: '100%', sm: 140 },
+                    height: 56,
+                    background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
                     textTransform: 'none',
-                    boxShadow: 'none',
+                    fontSize: '1rem',
+                    fontWeight: 600,
+                    boxShadow: '0 4px 14px rgba(37, 99, 235, 0.4)',
                     '&:hover': {
-                      background: '#1d4ed8',
-                      boxShadow: '0 2px 8px rgba(37, 99, 235, 0.3)',
-                    }
+                      background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                      boxShadow: '0 6px 20px rgba(37, 99, 235, 0.5)',
+                      transform: 'translateY(-2px)'
+                    },
+                    transition: 'all 0.3s ease'
                   }}
                 >
                   {loading ? <CircularProgress size={24} color="inherit" /> : 'Buscar'}
@@ -105,10 +180,32 @@ const SearchPage = () => {
               </Box>
 
               {error && (
-                <Alert severity="error" sx={{ mb: 2 }}>
+                <Alert 
+                  severity="info" 
+                  sx={{ 
+                    mt: 2,
+                    borderRadius: 2,
+                    backgroundColor: 'rgba(239, 246, 255, 0.8)',
+                    border: '1px solid rgba(147, 197, 253, 0.3)'
+                  }}
+                >
                   {error}
                 </Alert>
               )}
+              
+              <Box
+                sx={{
+                  mt: 3,
+                  p: 2,
+                  background: 'rgba(241, 245, 249, 0.8)',
+                  borderRadius: 2,
+                  border: '1px solid #e2e8f0'
+                }}
+              >
+                <Typography variant="body2" sx={{ color: '#64748b', fontSize: '0.875rem' }}>
+                  <strong>💡 Tip:</strong> Puedes buscar usando el DNI completo del propietario (8 dígitos) o el código CUI de la mascota (formato: XXXXXXXX-X)
+                </Typography>
+              </Box>
             </form>
           </CardContent>
         </Card>
@@ -120,16 +217,41 @@ const SearchPage = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <Typography
-              variant="h6"
+            <Box
               sx={{
-                color: '#1e293b',
-                mb: 2,
-                fontWeight: 600
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                mb: 3,
+                p: 2,
+                background: 'rgba(34, 197, 94, 0.1)',
+                borderRadius: 2,
+                border: '1px solid rgba(34, 197, 94, 0.2)'
               }}
             >
-              Resultados de la Búsqueda ({searchResults.length})
-            </Typography>
+              <Typography
+                variant="h5"
+                sx={{
+                  color: '#1e293b',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1
+                }}
+              >
+                <Pets sx={{ color: '#22c55e' }} />
+                Resultados Encontrados
+              </Typography>
+              <Chip 
+                label={`${searchResults.length} ${searchResults.length === 1 ? 'mascota' : 'mascotas'}`}
+                sx={{
+                  background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                  color: 'white',
+                  fontWeight: 600,
+                  fontSize: '0.9rem'
+                }}
+              />
+            </Box>
 
             <Grid container spacing={3}>
               {searchResults.map((pet, index) => (
@@ -140,15 +262,18 @@ const SearchPage = () => {
                     transition={{ duration: 0.5, delay: index * 0.1 }}
                   >
                     <Card
-                      className="pet-card"
+                      elevation={0}
                       sx={{
-                        background: '#ffffff',
-                        border: '1px solid #e5e7eb',
-                        boxShadow: '0 4px 15px rgba(0,0,0,0.08)',
+                        background: 'rgba(255, 255, 255, 0.95)',
+                        backdropFilter: 'blur(10px)',
+                        border: '1px solid rgba(226, 232, 240, 0.8)',
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                        borderRadius: 3,
                         transition: 'all 0.3s ease',
                         '&:hover': {
-                          boxShadow: '0 8px 25px rgba(37, 99, 235, 0.15)',
-                          transform: 'translateY(-2px)'
+                          boxShadow: '0 12px 35px rgba(37, 99, 235, 0.15)',
+                          transform: 'translateY(-4px)',
+                          borderColor: 'rgba(59, 130, 246, 0.3)'
                         }
                       }}
                     >
@@ -220,8 +345,9 @@ const SearchPage = () => {
             </Grid>
           </motion.div>
         )}
-      </motion.div>
-    </Container>
+        </motion.div>
+      </Container>
+    </Box>
   )
 }
 

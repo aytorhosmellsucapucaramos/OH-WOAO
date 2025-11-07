@@ -16,20 +16,25 @@ const INITIAL_STATE = {
   phone: '',
   email: '',
   password: '',
+  confirmPassword: '',
   address: '',
   
   // Datos de la mascota
   petName: '',
   breed: '',
-  size: 'medium',
+  size: '', // Vacío por defecto
   color: '',
   birthDate: '',
-  sex: 'male',
+  sex: '',
   age: '',
   
+  // Perfil de Comportamiento (Paso 2b)
+  temperament: '', // Temperamento del can
+  additionalFeatures: '', // Características adicionales y antecedentes
+  
   // Salud
-  hasVaccinationCard: 'yes',
-  hasRabiesVaccine: 'yes',
+  hasVaccinationCard: 'no', // No por defecto
+  hasRabiesVaccine: 'no', // No por defecto
   
   // Archivos
   photo: null,
@@ -49,9 +54,13 @@ export const useRegistrationForm = () => {
   // Cargar datos del usuario si está autenticado
   useEffect(() => {
     const loadUserData = () => {
-      if (isAuthenticated()) {
+      const authenticated = isAuthenticated();
+      
+      if (authenticated) {
         const user = getCurrentUser();
-        if (user) {
+        
+        // Verificar que el usuario tenga datos completos (no solo token)
+        if (user && user.first_name && user.last_name && user.dni && user.email) {
           setIsUserAuthenticated(true);
           setFormData(prev => ({
             ...prev,
@@ -63,9 +72,21 @@ export const useRegistrationForm = () => {
             address: user.address || '',
             password: '' // No autocompletar contraseña por seguridad
           }));
-          // Si el usuario ya está autenticado, ir directamente al paso de mascota
+          // Si el usuario ya está autenticado con datos completos, ir directamente al paso de mascota
           setCurrentStep(1);
+        } else {
+          // Si el token existe pero no hay datos completos, limpiar todo y empezar desde cero
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          localStorage.removeItem('userRole');
+          localStorage.removeItem('userFullName');
+          setIsUserAuthenticated(false);
+          setCurrentStep(0);
         }
+      } else {
+        setIsUserAuthenticated(false);
+        setCurrentStep(0);
       }
     };
     loadUserData();
@@ -97,6 +118,8 @@ export const useRegistrationForm = () => {
           else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Email inválido';
           if (!formData.password.trim()) newErrors.password = 'Contraseña requerida';
           else if (formData.password.length < 6) newErrors.password = 'Mínimo 6 caracteres';
+          if (!formData.confirmPassword.trim()) newErrors.confirmPassword = 'Confirmar contraseña es requerido';
+          else if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = 'Las contraseñas no coinciden';
           if (!formData.address.trim()) newErrors.address = 'Dirección requerida';
         }
         break;
@@ -128,8 +151,10 @@ export const useRegistrationForm = () => {
 
   // Paso anterior
   const prevStep = useCallback(() => {
-    setCurrentStep(prev => Math.max(prev - 1, 0));
-  }, []);
+    // Si el usuario está autenticado, no puede ir al paso 0 (datos del propietario)
+    const minStep = isUserAuthenticated ? 1 : 0;
+    setCurrentStep(prev => Math.max(prev - 1, minStep));
+  }, [isUserAuthenticated]);
 
   // Submit
   const handleSubmit = useCallback(async () => {
@@ -143,14 +168,37 @@ export const useRegistrationForm = () => {
       const result = await registerPet(formData);
       setSuccess(true);
       
-      // Esperar 2 segundos y redirigir
+      // Si el registro devuelve un token, guardar automáticamente la sesión
+      if (result.token) {
+        localStorage.setItem('token', result.token);
+        localStorage.setItem('authToken', result.token); // También guardar con el nombre alternativo
+        if (result.user) {
+          localStorage.setItem('user', JSON.stringify(result.user));
+        }
+      }
+      
+      // Redirigir al dashboard después de guardar el token
       setTimeout(() => {
-        navigate('/dashboard');
-      }, 2000);
+        // Forzar recarga para asegurar que el ProtectedRoute reconozca el token
+        window.location.href = '/dashboard';
+      }, 1500);
       
       return { success: true, data: result };
     } catch (error) {
-      const errorMessage = error.response?.data?.error || 'Error al registrar la mascota';
+      console.error('Error al registrar:', error);
+      
+      // Si hay errores de validación específicos por campo
+      if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+        const fieldErrors = {};
+        error.response.data.errors.forEach(err => {
+          fieldErrors[err.field] = err.message;
+        });
+        setErrors(fieldErrors);
+        return { success: false, error: 'Por favor corrige los errores en el formulario' };
+      }
+      
+      // Error genérico
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Error al registrar la mascota';
       setErrors({ submit: errorMessage });
       return { success: false, error: errorMessage };
     } finally {

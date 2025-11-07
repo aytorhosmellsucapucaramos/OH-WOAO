@@ -29,13 +29,16 @@ const UserManagement = () => {
   }
 
   const filteredUsers = users.filter(user => {
+    // Solo mostrar usuarios regulares (SIN código de empleado municipal)
+    const isRegularUser = !user.employee_code && (!user.role || user.role === 'user')
+    
     const fullName = `${user.first_name} ${user.last_name}`.toLowerCase()
     const matchesSearch = searchTerm === '' || 
       fullName.includes(searchTerm.toLowerCase()) ||
       user.dni?.includes(searchTerm) ||
       user.email?.toLowerCase().includes(searchTerm.toLowerCase())
     
-    return matchesSearch
+    return isRegularUser && matchesSearch
   })
 
   const handleDelete = async (userId) => {

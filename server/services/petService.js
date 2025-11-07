@@ -54,6 +54,7 @@ async function registerPet(petData, files, adopterId) {
     
     const {
       petName, sex, breed, birthDate, age, size, color, additionalFeatures,
+      temperament,
       aggressionHistory, aggressionDetails,
       hasVaccinationCard, hasRabiesVaccine, medicalHistory,
       receiptNumber, receiptIssueDate, receiptPayer, receiptAmount
@@ -82,18 +83,28 @@ async function registerPet(petData, files, adopterId) {
       sizeId = sizeResult.length > 0 ? sizeResult[0].id : null;
     }
     
+    // Get temperament ID (temperaments use 'code' instead of 'name')
+    let temperamentId = null;
+    if (temperament) {
+      const [temperamentResult] = await connection.query(
+        'SELECT id FROM temperaments WHERE code = ? LIMIT 1',
+        [temperament]
+      );
+      temperamentId = temperamentResult.length > 0 ? temperamentResult[0].id : null;
+    }
+    
     // Insert basic pet data
     const [petResult] = await connection.query(
       `INSERT INTO pets (
         cui, pet_name, sex, 
         breed_id, birth_date, age, size_id,
-        additional_features,
+        temperament_id, additional_features,
         adopter_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         cui, petName, sex,
         breedId, birthDate || null, age, sizeId,
-        additionalFeatures || '',
+        temperamentId, additionalFeatures || '',
         adopterId
       ]
     );
@@ -260,9 +271,164 @@ async function getPetByCUI(cui) {
   }
 }
 
+/**
+ * Update pet information
+ * @param {number} petId - Pet ID
+ * @param {number} adopterId - Owner/adopter ID (for authorization)
+ * @param {object} updates - Fields to update
+ * @returns {Promise<void>}
+ */
+async function updatePet(petId, adopterId, updates) {
+  const connection = await pool.getConnection();
+  
+  try {
+    // Verify pet belongs to the user
+    const [pets] = await connection.query(
+      'SELECT id, adopter_id FROM pets WHERE id = ?',
+      [petId]
+    );
+    
+    if (pets.length === 0) {
+      throw new Error('PET_NOT_FOUND');
+    }
+    
+    if (pets[0].adopter_id !== adopterId) {
+      throw new Error('UNAUTHORIZED');
+    }
+    
+    await connection.beginTransaction();
+    
+    // Prepare pet table updates
+    const petUpdates = {};
+    const allowedPetFields = ['pet_name', 'sex', 'birth_date', 'age', 'additional_features'];
+    
+    for (const field of allowedPetFields) {
+      if (updates[field] !== undefined) {
+        petUpdates[field] = updates[field];
+      }
+    }
+    
+    // Handle catalog fields (breed, size, temperament)
+    if (updates.breed) {
+      const breedId = await getOrCreateCatalogId('breeds', 'name', updates.breed, connection);
+      petUpdates.breed_id = breedId;
+    }
+    
+    if (updates.size) {
+      const [sizeResult] = await connection.query(
+        'SELECT id FROM sizes WHERE code = ? LIMIT 1',
+        [updates.size]
+      );
+      if (sizeResult.length > 0) {
+        petUpdates.size_id = sizeResult[0].id;
+      }
+    }
+    
+    if (updates.temperament) {
+      const [temperamentResult] = await connection.query(
+        'SELECT id FROM temperaments WHERE code = ? LIMIT 1',
+        [updates.temperament]
+      );
+      if (temperamentResult.length > 0) {
+        petUpdates.temperament_id = temperamentResult[0].id;
+      }
+    }
+    
+    // Update pet table
+    if (Object.keys(petUpdates).length > 0) {
+      const setClause = Object.keys(petUpdates).map(key => `${key} = ?`).join(', ');
+      const values = Object.values(petUpdates);
+      
+      await connection.query(
+        `UPDATE pets SET ${setClause} WHERE id = ?`,
+        [...values, petId]
+      );
+    }
+    
+    // Update color if provided
+    if (updates.color) {
+      const colorId = await getOrCreateCatalogId('colors', 'name', updates.color, connection);
+      
+      // Delete existing colors
+      await connection.query('DELETE FROM pet_colors WHERE pet_id = ?', [petId]);
+      
+      // Insert new color
+      await connection.query(
+        'INSERT INTO pet_colors (pet_id, color_id, display_order) VALUES (?, ?, 0)',
+        [petId, colorId]
+      );
+    }
+    
+    // Update health records
+    // First, check if health record exists, if not create it
+    const [existingHealthRecord] = await connection.query(
+      'SELECT id FROM pet_health_records WHERE pet_id = ?',
+      [petId]
+    );
+    
+    if (existingHealthRecord.length === 0) {
+      // Create health record if it doesn't exist
+      await connection.query(
+        'INSERT INTO pet_health_records (pet_id) VALUES (?)',
+        [petId]
+      );
+    }
+    
+    const healthUpdates = {};
+    if (updates.hasVaccinationCard !== undefined) {
+      const hasVaccCard = updates.hasVaccinationCard === 'yes' || updates.hasVaccinationCard === 'si' || 
+                          updates.hasVaccinationCard === true || updates.hasVaccinationCard === 'true';
+      healthUpdates.has_vaccination_card = hasVaccCard;
+    }
+    
+    if (updates.hasRabiesVaccine !== undefined) {
+      const hasRabiesVac = updates.hasRabiesVaccine === 'yes' || updates.hasRabiesVaccine === 'si' || 
+                           updates.hasRabiesVaccine === true || updates.hasRabiesVaccine === 'true';
+      healthUpdates.has_rabies_vaccine = hasRabiesVac;
+    }
+    
+    // Handle medical history from catalog
+    if (updates.medicalHistory !== undefined) {
+      const [medicalHistoryResult] = await connection.query(
+        'SELECT id FROM medical_histories WHERE code = ? LIMIT 1',
+        [updates.medicalHistory]
+      );
+      if (medicalHistoryResult.length > 0) {
+        healthUpdates.medical_history_id = medicalHistoryResult[0].id;
+      }
+    }
+    
+    // Handle medical history details (for "other" option)
+    if (updates.medicalHistoryDetails !== undefined) {
+      healthUpdates.medical_history_details = updates.medicalHistoryDetails;
+    }
+    
+    if (Object.keys(healthUpdates).length > 0) {
+      const setClause = Object.keys(healthUpdates).map(key => `${key} = ?`).join(', ');
+      const values = Object.values(healthUpdates);
+      
+      await connection.query(
+        `UPDATE pet_health_records SET ${setClause} WHERE pet_id = ?`,
+        [...values, petId]
+      );
+    }
+    
+    await connection.commit();
+    logger.info('Pet updated successfully', { petId, adopterId });
+    
+  } catch (error) {
+    await connection.rollback();
+    logger.error('Pet update failed', { error: error.message, petId, adopterId });
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
 module.exports = {
   registerPet,
   getAllPets,
   searchPets,
-  getPetByCUI
+  getPetByCUI,
+  updatePet
 };

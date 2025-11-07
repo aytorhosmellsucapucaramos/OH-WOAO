@@ -1,5 +1,6 @@
 import React from "react";
 import { Box, Typography, Paper } from "@mui/material";
+import { getUploadUrl } from "../utils/urls";
 
 const PetCard = ({ petData }) => {
   if (!petData) {
@@ -364,7 +365,7 @@ const PetCard = ({ petData }) => {
                 <div className="w-64 h-48 bg-white border-2 border-gray-400 rounded-lg overflow-hidden shadow-lg">
                   {photo_frontal_path ? (
                     <img
-                      src={`http://localhost:5000/api/uploads/${photo_frontal_path}`}
+                      src={getUploadUrl(photo_frontal_path)}
                       alt={pet_name}
                       className="w-full h-full object-cover"
                     />
@@ -554,7 +555,7 @@ const PetCard = ({ petData }) => {
                 <div className="w-64 h-48 bg-white border-2 border-gray-400 rounded-lg p-2 shadow-lg">
                   {qr_code_path ? (
                     <img
-                      src={`http://localhost:5000/api/uploads/${qr_code_path}`}
+                      src={getUploadUrl(qr_code_path)}
                       alt="QR Code"
                       className="w-full h-full object-contain"
                     />
@@ -599,7 +600,7 @@ const PetCard = ({ petData }) => {
                   <div className="w-64 h-64 bg-white p-2 flex items-center justify-center rounded-lg shadow-lg">
                     {qr_code_path ? (
                       <img
-                        src={`http://localhost:5000/api/uploads/${qr_code_path}`}
+                        src={getUploadUrl(qr_code_path)}
                         alt="QR Code"
                         className="w-full h-full object-contain"
                       />

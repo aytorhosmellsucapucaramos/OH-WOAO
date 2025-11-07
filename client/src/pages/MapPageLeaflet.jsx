@@ -41,6 +41,7 @@ import {
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
 import axios from "axios";
+import { getUploadUrl, getApiUrl } from "../utils/urls";
 import ReportDetailModal from "../components/features/strayReports/ReportDetailModal";
 
 // Fix for default markers in React Leaflet
@@ -53,6 +54,33 @@ L.Icon.Default.mergeOptions({
   shadowUrl:
     "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
 });
+
+// SVG placeholder inline para evitar bloqueos de ad-blockers
+const PLACEHOLDER_IMAGE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Crect fill='%23f0f0f0' width='200' height='200'/%3E%3Ctext fill='%23999' font-family='sans-serif' font-size='16' dy='10.5' font-weight='bold' x='50%25' y='50%25' text-anchor='middle'%3ESin Foto%3C/text%3E%3C/svg%3E";
+
+// Componente helper para Avatar con fallback
+const SafeAvatar = ({ src, alt, children, sx, ...props }) => {
+  const [imgSrc, setImgSrc] = React.useState(src || PLACEHOLDER_IMAGE);
+  
+  React.useEffect(() => {
+    setImgSrc(src || PLACEHOLDER_IMAGE);
+  }, [src]);
+  
+  return (
+    <Avatar {...props} sx={sx}>
+      {imgSrc && imgSrc !== PLACEHOLDER_IMAGE ? (
+        <img
+          src={imgSrc}
+          alt={alt}
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          onError={() => setImgSrc(PLACEHOLDER_IMAGE)}
+        />
+      ) : (
+        children || <Pets />
+      )}
+    </Avatar>
+  );
+};
 
 // Component to recenter map with zoom and smooth animation
 function MapRecenter({ center, zoom }) {
@@ -85,6 +113,8 @@ const MapPageLeaflet = () => {
   const [mapZoom, setMapZoom] = useState(14);
   const [userLocation, setUserLocation] = useState(null);
   const [usingMockData, setUsingMockData] = useState(false);
+  const [activeMarkerId, setActiveMarkerId] = useState(null);
+  const markerRefs = React.useRef({});
 
   // Simulación de datos (en producción vendría de la API)
   const mockReports = [
@@ -259,9 +289,9 @@ const MapPageLeaflet = () => {
     setLoading(true);
     setUsingMockData(false);
     try {
-      console.log("🔄 Intentando conectar con el servidor...");
+      console.log("🔄 Cargando reportes desde el servidor...");
       const response = await axios.get(
-        "http://localhost:5000/api/stray-reports",
+        getApiUrl("/stray-reports"),
         {
           timeout: 5000, // 5 segundos de timeout
         }
@@ -271,37 +301,32 @@ const MapPageLeaflet = () => {
 
       if (response.data.success) {
         const reports = response.data.data || [];
-        console.log(`✅ ${reports.length} reportes cargados desde el servidor`);
+        console.log(`✅ ${reports.length} reportes reales cargados desde la base de datos`);
         setStrayReports(reports);
 
-        // Si no hay reportes en BD, usar mock para demostración
         if (reports.length === 0) {
-          console.log(
-            "⚠️ No hay reportes en la BD, usando datos de demostración"
-          );
-          setStrayReports(mockReports);
-          setUsingMockData(true);
+          console.log("ℹ️ No hay reportes registrados aún. La base de datos está vacía.");
         }
       } else {
         console.error("❌ Error en respuesta:", response.data.error);
-        console.log("📊 Usando datos de demostración");
-        setStrayReports(mockReports);
-        setUsingMockData(true);
+        setStrayReports([]);
       }
     } catch (error) {
       if (error.code === "ERR_NETWORK" || error.code === "ECONNREFUSED") {
         console.log(
-          "⚠️ Servidor backend no disponible. Usando datos de demostración."
+          "❌ No se pudo conectar con el servidor. Usando datos de demostración."
         );
         console.log(
-          "💡 Para conectar con el servidor real, asegúrate de que el backend esté corriendo en el puerto 5000"
+          "💡 Asegúrate de que el backend esté corriendo y accesible desde la red"
         );
+      } else if (error.code === "ECONNABORTED") {
+        console.error("❌ Timeout: El servidor no respondió a tiempo.");
       } else {
-        console.error("❌ Error inesperado:", error.message);
+        console.error("❌ Error al cargar reportes:", error.message);
       }
-      // Usar mock como fallback
+      // Solo usar mock si el servidor no está disponible
       console.log(
-        `📊 Mostrando ${mockReports.length} reportes de demostración`
+        `📊 Mostrando ${mockReports.length} reportes de demostración (servidor no disponible)`
       );
       setStrayReports(mockReports);
       setUsingMockData(true);
@@ -354,15 +379,15 @@ const MapPageLeaflet = () => {
 
   const formatDate = (dateString) => {
     if (!dateString) return 'Fecha no disponible';
-    
+
     try {
       const date = new Date(dateString);
-      
+
       // Verificar si la fecha es válida
       if (isNaN(date.getTime())) {
         return 'Fecha inválida';
       }
-      
+
       return date.toLocaleDateString("es-ES", {
         year: "numeric",
         month: "short",
@@ -385,9 +410,9 @@ const MapPageLeaflet = () => {
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos((userLocation[0] * Math.PI) / 180) *
-        Math.cos((lat * Math.PI) / 180) *
-        Math.sin(dLng / 2) *
-        Math.sin(dLng / 2);
+      Math.cos((lat * Math.PI) / 180) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const distance = R * c;
 
@@ -395,95 +420,107 @@ const MapPageLeaflet = () => {
   };
 
   return (
-    <Container maxWidth="xl" sx={{ py: 4 }}>
+    <Container maxWidth="xl" sx={{ pt: { xs: 10, sm: 12, md: 14 }, pb: 6 }}>
       <motion.div
         initial={{ opacity: 0, y: 50 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
       >
         <Box textAlign="center" mb={4}>
-          {/* Header con logos simétricos */}
-          <Box
+          <Typography
+            variant="h3"
             sx={{
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              gap: 3,
-              mb: 2,
+              color: '#1e293b',
+              fontWeight: 800,
+              fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
+              mb: 1.5,
+              background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
             }}
           >
-            <Box>
-              <Typography
-                variant="h3"
-                sx={{
-                  color: "#1e293b",
-                  fontWeight: 700,
-                  letterSpacing: "-0.5px",
-                }}
-              >
-                🗺️ Mapa de Perros Callejeros
-              </Typography>
-            </Box>
-          </Box>
+            Mapa de Perros Callejeros
+          </Typography>
           <Typography
             variant="subtitle1"
-            sx={{ color: "#64748b", fontWeight: 400 }}
+            sx={{
+              color: "#64748b",
+              fontWeight: 500,
+              fontSize: "1.1rem",
+              maxWidth: 700,
+              mx: "auto",
+              lineHeight: 1.6
+            }}
           >
             Encuentra perros reportados en tu zona y ayuda en su rescate
           </Typography>
         </Box>
 
-        {/* Alert para datos de demostración */}
+        {/* Indicador de fuente de datos */}
         {usingMockData && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
+          <Alert
+            severity="warning"
+            sx={{
+              mb: 3,
+              backgroundColor: 'rgba(255, 167, 38, 0.1)',
+              border: '1px solid rgba(255, 167, 38, 0.3)',
+              '& .MuiAlert-icon': {
+                color: '#f57c00'
+              }
+            }}
           >
-            <Alert
-              severity="info"
-              sx={{
-                mb: 3,
-                backgroundColor: "rgba(59, 130, 246, 0.1)",
-                border: "1px solid rgba(59, 130, 246, 0.3)",
-                "& .MuiAlert-icon": {
-                  color: "#3b82f6",
-                },
-              }}
-            >
-              <Typography
-                variant="body2"
-                sx={{ color: "#1e40af", fontWeight: 500 }}
-              >
-                <strong>Modo Demostración:</strong> El servidor backend no está
-                disponible. Mostrando datos de ejemplo para visualización.
-              </Typography>
-              <Typography
-                variant="caption"
-                sx={{ color: "#64748b", display: "block", mt: 0.5 }}
-              >
-                💡 Para ver datos reales, inicia el servidor backend en el
-                puerto 5000
-              </Typography>
-            </Alert>
-          </motion.div>
+            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+              ⚠️ <strong>Servidor no disponible.</strong> Mostrando datos de demostración.
+              Asegúrate de que el backend esté corriendo y accesible desde la red.
+            </Typography>
+          </Alert>
+        )}
+
+        {!usingMockData && strayReports.length === 0 && !loading && (
+          <Alert
+            severity="info"
+            sx={{
+              mb: 3,
+              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+              '& .MuiAlert-icon': {
+                color: '#3b82f6'
+              }
+            }}
+          >
+            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+              ℹ️ No hay reportes de perros callejeros registrados aún.
+              Sé el primero en <strong>reportar un perro</strong> para ayudar a la comunidad.
+            </Typography>
+          </Alert>
         )}
 
         {/* Filtros */}
         <Card
+          elevation={0}
           sx={{
-            backgroundColor: "#ffffff",
-            border: "1px solid #e5e7eb",
-            boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+            background: "linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(249, 250, 251, 0.95) 100%)",
+            backdropFilter: "blur(20px)",
+            border: "1px solid rgba(226, 232, 240, 0.5)",
+            borderRadius: 3,
+            boxShadow: "0 4px 15px rgba(0,0,0,0.05), 0 1px 4px rgba(0,0,0,0.03)",
             mb: 3,
           }}
         >
           <CardContent>
             <Typography
               variant="h6"
-              sx={{ color: "#1e293b", mb: 2, fontWeight: 600 }}
+              sx={{
+                color: "#1e293b",
+                mb: 3,
+                fontWeight: 600,
+                display: "flex",
+                alignItems: "center",
+                gap: 1
+              }}
             >
-              <FilterList sx={{ mr: 1 }} />
+              <FilterList sx={{ color: "#3b82f6" }} />
               Filtros de Búsqueda
             </Typography>
 
@@ -600,11 +637,20 @@ const MapPageLeaflet = () => {
           {/* Mapa Leaflet */}
           <Grid item xs={12} md={8}>
             <Card
+              elevation={0}
               sx={{
-                backgroundColor: "rgba(255,255,255,0.98)",
+                background: "linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(249, 250, 251, 0.98) 100%)",
+                backdropFilter: "blur(20px)",
+                border: "1px solid rgba(226, 232, 240, 0.5)",
+                borderRadius: 3,
+                boxShadow: "0 8px 25px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.04)",
                 height: "600px",
                 position: "relative",
                 overflow: "hidden",
+                transition: "all 0.3s ease",
+                "&:hover": {
+                  boxShadow: "0 12px 35px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.06)",
+                }
               }}
             >
               <CardContent sx={{ height: "100%", p: 0 }}>
@@ -647,6 +693,18 @@ const MapPageLeaflet = () => {
                         key={report.id}
                         position={[report.latitude, report.longitude]}
                         icon={createCustomIcon(report.urgency)}
+                        ref={(ref) => {
+                          if (ref) {
+                            markerRefs.current[report.id] = ref;
+                            // Abrir popup si este marcador es el activo
+                            if (activeMarkerId === report.id) {
+                              setTimeout(() => {
+                                ref.openPopup();
+                                setActiveMarkerId(null);
+                              }, 100);
+                            }
+                          }
+                        }}
                       >
                         <Popup maxWidth={280}>
                           <Box sx={{ minWidth: 250, p: 1 }}>
@@ -658,12 +716,13 @@ const MapPageLeaflet = () => {
                                 mb: 1,
                               }}
                             >
-                              <Avatar
-                                src={report.photo_path ? `http://localhost:5000/api/uploads/${report.photo_path}` : report.photo}
+                              <SafeAvatar
+                                src={report.photo_path ? getUploadUrl(report.photo_path) : report.photo}
+                                alt={report.breed}
                                 sx={{ width: 50, height: 50 }}
                               >
                                 <Pets />
-                              </Avatar>
+                              </SafeAvatar>
                               <Box flex={1}>
                                 <Typography
                                   variant="subtitle1"
@@ -748,11 +807,18 @@ const MapPageLeaflet = () => {
                     bottom: 20,
                     right: 20,
                     zIndex: 1000,
-                    backgroundColor: "white",
-                    color: "primary.main",
+                    background: "linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)",
+                    color: "white",
+                    fontWeight: 600,
+                    px: 3,
+                    py: 1.5,
+                    boxShadow: "0 4px 15px rgba(59, 130, 246, 0.4)",
                     "&:hover": {
-                      backgroundColor: "#f5f5f5",
+                      background: "linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%)",
+                      transform: "translateY(-2px)",
+                      boxShadow: "0 6px 20px rgba(59, 130, 246, 0.5)",
                     },
+                    transition: "all 0.3s ease",
                   }}
                   onClick={() => {
                     setMapCenter(userLocation);
@@ -768,130 +834,181 @@ const MapPageLeaflet = () => {
 
           {/* Lista de Reportes */}
           <Grid item xs={12} md={4}>
-            <Box sx={{ maxHeight: "600px", overflowY: "auto" }}>
-              {filteredReports.map((report) => (
-                <motion.div
-                  key={report.id}
-                  initial={{ opacity: 0, x: 50 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.5 }}
+            <Box sx={{
+              maxHeight: "600px",
+              overflowY: "auto",
+              pr: 1,
+              "&::-webkit-scrollbar": {
+                width: "8px",
+              },
+              "&::-webkit-scrollbar-track": {
+                background: "rgba(226, 232, 240, 0.3)",
+                borderRadius: "10px",
+              },
+              "&::-webkit-scrollbar-thumb": {
+                background: "rgba(59, 130, 246, 0.3)",
+                borderRadius: "10px",
+                "&:hover": {
+                  background: "rgba(59, 130, 246, 0.5)",
+                },
+              },
+            }}>
+              {filteredReports.length === 0 ? (
+                <Box
+                  sx={{
+                    textAlign: 'center',
+                    py: 6,
+                    px: 3
+                  }}
                 >
-                  <Card
-                    sx={{
-                      backgroundColor: "#ffffff",
-                      border: "1px solid #e5e7eb",
-                      boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-                      mb: 2,
-                      cursor: "pointer",
-                      "&:hover": {
-                        boxShadow: "0 8px 20px rgba(37, 99, 235, 0.15)",
-                        transform: "translateY(-2px)",
-                        borderColor: "#3b82f6",
-                      },
-                      transition: "all 0.3s ease",
-                    }}
-                    onClick={() => {
-                      // Solo centrar el mapa con animación suave, no abrir modal
-                      setMapCenter([report.latitude, report.longitude]);
-                      setMapZoom(18);
-                    }}
+                  <Pets sx={{ fontSize: 60, color: '#94a3b8', mb: 2 }} />
+                  <Typography variant="h6" sx={{ color: '#64748b', mb: 1, fontWeight: 600 }}>
+                    No hay reportes
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#94a3b8' }}>
+                    {strayReports.length === 0
+                      ? "Aún no hay perros reportados"
+                      : "No hay perros que coincidan con los filtros seleccionados"}
+                  </Typography>
+                </Box>
+              ) : (
+                filteredReports.map((report) => (
+                  <motion.div
+                    key={report.id}
+                    initial={{ opacity: 0, x: 50 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.5 }}
                   >
-                    <CardContent>
-                      <Box display="flex" alignItems="center" mb={2}>
-                        <Avatar
-                          src={report.photo_path ? `http://localhost:5000/api/uploads/${report.photo_path}` : report.photo}
-                          sx={{ width: 50, height: 50, mr: 2 }}
-                        >
-                          <Pets />
-                        </Avatar>
-                        <Box flex={1}>
-                          <Typography
-                            variant="h6"
-                            sx={{ color: "#1e293b", fontWeight: 600 }}
-                          >
-                            {report.breed}
-                          </Typography>
-                          <Typography variant="body2" sx={{ color: "#64748b" }}>
-                            {getDistanceFromUser(
-                              report.latitude,
-                              report.longitude
-                            )}{" "}
-                            km de distancia
-                          </Typography>
-                        </Box>
-                        <Chip
-                          label={report.urgency}
-                          size="small"
-                          sx={{
-                            backgroundColor: urgencyColors[report.urgency],
-                            color: "white",
-                            fontWeight: 600,
-                          }}
-                        />
-                      </Box>
-
-                      <Box display="flex" flexWrap="wrap" gap={1} mb={2}>
-                        <Chip
-                          label={conditionLabels[report.condition]}
-                          size="small"
-                          sx={{
-                            backgroundColor: "#f1f5f9",
-                            color: "#475569",
-                            border: "1px solid #e2e8f0",
-                          }}
-                        />
-                        <Chip
-                          label={sizeLabels[report.size]}
-                          size="small"
-                          sx={{
-                            backgroundColor: "#f1f5f9",
-                            color: "#475569",
-                            border: "1px solid #e2e8f0",
-                          }}
-                        />
-                        <Chip
-                          label={
-                            temperamentLabels[report.temperament] ||
-                            report.temperament
+                    <Card
+                      elevation={0}
+                      sx={{
+                        background: "linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(249, 250, 251, 0.98) 100%)",
+                        backdropFilter: "blur(20px)",
+                        border: "1px solid rgba(226, 232, 240, 0.6)",
+                        borderRadius: 3,
+                        boxShadow: "0 4px 15px rgba(0,0,0,0.05), 0 1px 4px rgba(0,0,0,0.03)",
+                        mb: 2,
+                        cursor: "pointer",
+                        "&:hover": {
+                          boxShadow: "0 12px 30px rgba(59, 130, 246, 0.15), 0 4px 12px rgba(0,0,0,0.08)",
+                          transform: "translateY(-4px)",
+                          borderColor: "rgba(59, 130, 246, 0.4)",
+                        },
+                        transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                      }}
+                      onClick={() => {
+                        // Centrar el mapa y abrir el popup del marcador
+                        setMapCenter([report.latitude, report.longitude]);
+                        setMapZoom(18);
+                        setActiveMarkerId(report.id);
+                        
+                        // Intentar abrir el popup directamente si el marcador ya está renderizado
+                        setTimeout(() => {
+                          const marker = markerRefs.current[report.id];
+                          if (marker && marker.openPopup) {
+                            marker.openPopup();
                           }
-                          size="small"
+                        }, 500); // Esperar a que el mapa termine de hacer zoom
+                      }}
+                    >
+                      <CardContent>
+                        <Box display="flex" alignItems="center" mb={2}>
+                          <SafeAvatar
+                            src={report.photo_path ? getUploadUrl(report.photo_path) : report.photo}
+                            alt={report.breed}
+                            sx={{ width: 50, height: 50, mr: 2 }}
+                          >
+                            <Pets />
+                          </SafeAvatar>
+                          <Box flex={1}>
+                            <Typography
+                              variant="h6"
+                              sx={{ color: "#1e293b", fontWeight: 600 }}
+                            >
+                              {report.breed}
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: "#64748b" }}>
+                              {getDistanceFromUser(
+                                report.latitude,
+                                report.longitude
+                              )}{" "}
+                              km de distancia
+                            </Typography>
+                          </Box>
+                          <Chip
+                            label={report.urgency}
+                            size="small"
+                            sx={{
+                              backgroundColor: urgencyColors[report.urgency],
+                              color: "white",
+                              fontWeight: 600,
+                            }}
+                          />
+                        </Box>
+
+                        <Box display="flex" flexWrap="wrap" gap={1} mb={2}>
+                          <Chip
+                            label={conditionLabels[report.condition]}
+                            size="small"
+                            sx={{
+                              backgroundColor: "#f1f5f9",
+                              color: "#475569",
+                              border: "1px solid #e2e8f0",
+                            }}
+                          />
+                          <Chip
+                            label={sizeLabels[report.size]}
+                            size="small"
+                            sx={{
+                              backgroundColor: "#f1f5f9",
+                              color: "#475569",
+                              border: "1px solid #e2e8f0",
+                            }}
+                          />
+                          <Chip
+                            label={
+                              temperamentLabels[report.temperament] ||
+                              report.temperament
+                            }
+                            size="small"
+                            sx={{
+                              backgroundColor:
+                                temperamentColors[report.temperament],
+                              color: "white",
+                              fontWeight: 500,
+                            }}
+                          />
+                        </Box>
+
+                        <Typography
+                          variant="body2"
                           sx={{
-                            backgroundColor:
-                              temperamentColors[report.temperament],
-                            color: "white",
-                            fontWeight: 500,
+                            color: "#64748b",
+                            mb: 1,
+                            display: "flex",
+                            alignItems: "center",
                           }}
-                        />
-                      </Box>
+                        >
+                          <LocationOn sx={{ fontSize: 16, mr: 0.5 }} />
+                          {report.address}
+                        </Typography>
 
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          color: "#64748b",
-                          mb: 1,
-                          display: "flex",
-                          alignItems: "center",
-                        }}
-                      >
-                        <LocationOn sx={{ fontSize: 16, mr: 0.5 }} />
-                        {report.address}
-                      </Typography>
-
-                      <Typography
-                        variant="caption"
-                        sx={{
-                          color: "#94a3b8",
-                          display: "flex",
-                          alignItems: "center",
-                        }}
-                      >
-                        <AccessTime sx={{ fontSize: 14, mr: 0.5 }} />
-                        Reportado: {formatDate(report.created_at || report.createdAt)}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: "#94a3b8",
+                            display: "flex",
+                            alignItems: "center",
+                          }}
+                        >
+                          <AccessTime sx={{ fontSize: 14, mr: 0.5 }} />
+                          Reportado: {formatDate(report.created_at || report.createdAt)}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))
+              )}
             </Box>
           </Grid>
         </Grid>

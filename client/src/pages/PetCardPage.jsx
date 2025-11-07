@@ -5,6 +5,7 @@ import { ArrowBack } from '@mui/icons-material'
 import { motion } from 'framer-motion'
 import axios from 'axios'
 import PetCard from '../components/PetCard'
+import { getApiUrl } from '../utils/urls'
 
 const PetCardPage = () => {
   const { cui } = useParams()
@@ -45,7 +46,7 @@ const PetCardPage = () => {
   useEffect(() => {
     const fetchPetData = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/pet/${cui}`)
+        const response = await axios.get(getApiUrl(`/pet/${cui}`))
         // The server sends data in response.data.data
         if (response.data.success) {
           setPetData(response.data.data)

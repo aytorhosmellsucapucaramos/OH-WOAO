@@ -10,8 +10,8 @@ const AdminRoute = ({ children }) => {
     return <Navigate to="/login" replace />
   }
 
-  // Si no es admin, redirigir a dashboard de usuario
-  if (userRole !== 'admin') {
+  // Si no es admin o super_admin, redirigir a dashboard de usuario
+  if (userRole !== 'admin' && userRole !== 'super_admin') {
     return <Navigate to="/dashboard" replace />
   }
 

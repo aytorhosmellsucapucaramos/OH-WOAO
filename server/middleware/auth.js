@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const { pool } = require('../config/database');
 require('dotenv').config();
 
 // Validación estricta de JWT_SECRET
@@ -15,7 +16,8 @@ const generateToken = (user) => {
     { 
       id: user.id, 
       email: user.email,
-      dni: user.dni 
+      dni: user.dni,
+      role_id: user.role_id || 1  // Incluir rol en el token
     },
     JWT_SECRET,
     { 
@@ -24,8 +26,8 @@ const generateToken = (user) => {
   );
 };
 
-// Verify JWT Token Middleware
-const verifyToken = (req, res, next) => {
+// Verify JWT Token Middleware (con información completa del usuario)
+const verifyToken = async (req, res, next) => {
   const token = req.headers['authorization']?.split(' ')[1];
   
   if (!token) {
@@ -37,9 +39,35 @@ const verifyToken = (req, res, next) => {
   
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
+    
+    // Obtener información completa del usuario incluyendo rol
+    const [users] = await pool.query(`
+      SELECT 
+        a.id, a.first_name, a.last_name, a.email, a.dni, 
+        a.role_id, a.assigned_zone, a.employee_code, a.is_active,
+        r.code as role_code, r.name as role_name, r.permissions
+      FROM adopters a
+      LEFT JOIN roles r ON a.role_id = r.id
+      WHERE a.id = ?
+    `, [decoded.id]);
+    
+    if (users.length === 0 || !users[0].is_active) {
+      return res.status(401).json({ 
+        success: false, 
+        error: 'Usuario no encontrado o inactivo' 
+      });
+    }
+    
+    req.user = users[0];
+    console.log('✅ Usuario autenticado:', { 
+      id: users[0].id, 
+      email: users[0].email,
+      role_code: users[0].role_code,
+      role_id: users[0].role_id
+    });
     next();
   } catch (error) {
+    console.error('❌ Error en verifyToken:', error.message);
     return res.status(403).json({ 
       success: false, 
       error: 'Token inválido o expirado' 
@@ -66,8 +94,42 @@ const optionalAuth = (req, res, next) => {
   next();
 };
 
+// Middleware de autorización por roles
+const authorize = (...allowedRoles) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      console.error('❌ authorize: No hay req.user');
+      return res.status(401).json({ 
+        success: false,
+        error: 'No autenticado' 
+      });
+    }
+    
+    console.log('🔐 Verificando autorización:', {
+      required_roles: allowedRoles,
+      user_role_code: req.user.role_code,
+      user_role_id: req.user.role_id
+    });
+    
+    // Verificar si el rol del usuario está en los roles permitidos
+    if (!allowedRoles.includes(req.user.role_code)) {
+      console.error('❌ authorize: Rol no permitido');
+      return res.status(403).json({ 
+        success: false,
+        error: 'No tienes permisos para acceder a este recurso',
+        required_role: allowedRoles,
+        your_role: req.user.role_code
+      });
+    }
+    
+    console.log('✅ Autorización exitosa');
+    next();
+  };
+};
+
 module.exports = {
   generateToken,
   verifyToken,
-  optionalAuth
+  optionalAuth,
+  authorize
 };

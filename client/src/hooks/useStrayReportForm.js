@@ -17,12 +17,12 @@ export const useStrayReportForm = () => {
     address: '',
     zone: '',
     breed: '',
-    size: 'medium',
+    size: '',
     colors: [],
-    temperament: 'neutral',
-    condition: 'stray',
-    gender: 'unknown', // Nuevo campo
-    urgency: 'normal',
+    temperament: '',
+    condition: '',
+    gender: '', // Nuevo campo
+    urgency: '',
     description: '',
     photo: null
   });
@@ -31,19 +31,23 @@ export const useStrayReportForm = () => {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  // Cargar datos del usuario si está autenticado
+  // Cargar datos del usuario automáticamente (ahora es obligatorio estar autenticado)
   useEffect(() => {
-    if (isAuthenticated()) {
-      const user = getCurrentUser();
-      if (user) {
-        const fullName = `${user.firstName || user.first_name || ''} ${user.lastName || user.last_name || ''}`.trim();
-        if (fullName) {
-          setFormData(prev => ({
-            ...prev,
-            reporterName: fullName
-          }));
-        }
+    const user = getCurrentUser();
+    if (user) {
+      const fullName = `${user.firstName || user.first_name || ''} ${user.lastName || user.last_name || ''}`.trim();
+      if (fullName) {
+        setFormData(prev => ({
+          ...prev,
+          reporterName: fullName
+        }));
+        console.log('✅ Usuario autenticado para reporte:', fullName);
+      } else {
+        console.warn('⚠️ Usuario sin nombre completo');
       }
+    } else {
+      console.error('❌ No hay usuario autenticado para reportar');
+      // Opcional: redirigir al login si no está autenticado
     }
   }, []);
 
@@ -51,11 +55,16 @@ export const useStrayReportForm = () => {
   const updateField = useCallback((field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     
-    // Limpiar error del campo
-    if (errors[field]) {
+    // Limpiar error del campo cuando el usuario corrija
+    if (errors[field] && value) {
       setErrors(prev => ({ ...prev, [field]: null }));
     }
   }, [errors]);
+  
+  // Función para establecer errores (usada desde el componente)
+  const setFieldError = useCallback((field, error) => {
+    setErrors(prev => ({ ...prev, [field]: error }));
+  }, []);
 
   // Actualizar ubicación
   const updateLocation = useCallback((lat, lng, address = '') => {
@@ -71,8 +80,9 @@ export const useStrayReportForm = () => {
   const validate = useCallback(() => {
     const newErrors = {};
 
-    if (!formData.reporterName.trim()) {
-      newErrors.reporterName = 'El nombre es requerido';
+    // Validar que el nombre del reportero se haya obtenido del usuario autenticado
+    if (!formData.reporterName || !formData.reporterName.trim()) {
+      newErrors.reporterName = 'Error: No se pudo obtener tu nombre de usuario. Intenta cerrar e iniciar sesión nuevamente.';
     }
 
     if (!formData.address.trim()) {
@@ -85,6 +95,11 @@ export const useStrayReportForm = () => {
 
     if (formData.colors.length === 0) {
       newErrors.colors = 'Selecciona al menos un color';
+    }
+
+    // ❗ NUEVO: Validar que la foto sea obligatoria
+    if (!formData.photo) {
+      newErrors.photo = '¡La foto es obligatoria! Ayuda a identificar al perro tomando una foto.';
     }
 
     setErrors(newErrors);
@@ -161,6 +176,7 @@ export const useStrayReportForm = () => {
     updateLocation,
     handleSubmit,
     reset,
-    setFormData
+    setFormData,
+    setFieldError
   };
 };

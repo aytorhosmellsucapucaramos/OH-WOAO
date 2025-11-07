@@ -70,7 +70,19 @@ async function verifyPassword(password, hashedPassword) {
  * @returns {Promise<string>} - Hashed password
  */
 async function hashPassword(password) {
-  return bcrypt.hash(password, 10);
+  logger.info('🔒 Hasheando contraseña', { 
+    passwordLength: password?.length,
+    passwordType: typeof password 
+  });
+  
+  const hashed = await bcrypt.hash(password, 10);
+  
+  logger.info('✅ Contraseña hasheada', { 
+    hashedLength: hashed.length,
+    hashedPrefix: hashed.substring(0, 7)
+  });
+  
+  return hashed;
 }
 
 /**
@@ -91,17 +103,35 @@ async function getOrCreateUser(userData, password, authenticatedUser = null) {
     };
   }
 
+  // Limpiar espacios en blanco de email y contraseña
   const { dni, email } = userData;
+  const cleanEmail = email?.trim();
+  const cleanPassword = password?.trim();
+  
+  logger.info('🔍 Verificando usuario', { 
+    email: cleanEmail, 
+    dni,
+    passwordLength: cleanPassword?.length 
+  });
   
   // Check if user exists
-  const existingUser = await findUserByDniOrEmail(dni, email);
+  const existingUser = await findUserByDniOrEmail(dni, cleanEmail);
   
   if (existingUser) {
+    logger.info('👤 Usuario existente encontrado', { 
+      userId: existingUser.id, 
+      email: existingUser.email 
+    });
+    
     // Verify password
-    const validPassword = await verifyPassword(password, existingUser.password);
+    const validPassword = await verifyPassword(cleanPassword, existingUser.password);
+    
     if (!validPassword) {
+      logger.error('❌ Contraseña incorrecta para usuario existente', { email: cleanEmail });
       throw new Error('Contraseña incorrecta para el usuario existente');
     }
+    
+    logger.info('✅ Login exitoso para usuario existente', { email: cleanEmail });
     
     return {
       userId: existingUser.id,
@@ -112,12 +142,13 @@ async function getOrCreateUser(userData, password, authenticatedUser = null) {
   }
   
   // Create new user
-  const hashedPassword = await hashPassword(password);
+  logger.info('🆕 Creando nuevo usuario', { email: cleanEmail, dni });
+  const hashedPassword = await hashPassword(cleanPassword);
   const userId = await createUser(userData, hashedPassword);
   
   return {
     userId,
-    email,
+    email: cleanEmail,
     dni,
     isNewUser: true
   };

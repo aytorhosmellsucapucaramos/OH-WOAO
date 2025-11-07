@@ -111,6 +111,10 @@ router.get('/all', async (req, res) => {
       'SELECT id, code, name, description, color, priority FROM urgency_levels WHERE active = 1 ORDER BY priority ASC'
     );
     
+    const [medicalHistories] = await pool.query(
+      'SELECT id, code, name, description FROM medical_histories ORDER BY id ASC'
+    );
+    
     res.json({
       success: true,
       data: {
@@ -119,7 +123,8 @@ router.get('/all', async (req, res) => {
         sizes,
         temperaments,
         conditions,
-        urgencies
+        urgencies,
+        medicalHistories
       }
     });
   } catch (error) {

@@ -28,10 +28,16 @@ const storage = multer.diskStorage({
 const upload = multer({ 
   storage: storage,
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
+    // Solo validar si hay un archivo real con mimetype
+    if (file && file.mimetype) {
+      if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('application/pdf')) {
+        cb(null, true);
+      } else {
+        cb(new Error(`Solo se permiten archivos de imagen o PDF. Tipo recibido: ${file.mimetype}`), false);
+      }
     } else {
-      cb(new Error('Solo se permiten archivos de imagen'), false);
+      // Si no hay archivo o no tiene mimetype, aceptar (campo opcional)
+      cb(null, true);
     }
   },
   limits: {

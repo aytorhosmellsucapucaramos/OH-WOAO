@@ -1,6 +1,7 @@
 // API Configuration
-// Usa variable de entorno VITE_API_URL si está disponible, sino localhost
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001'
+// En desarrollo, usa rutas relativas para aprovechar el proxy de Vite (funciona en móvil)
+// En producción, usa variable de entorno VITE_API_URL
+export const API_BASE_URL = import.meta.env.VITE_API_URL || ''
 
 // API Endpoints
 export const API_ENDPOINTS = {

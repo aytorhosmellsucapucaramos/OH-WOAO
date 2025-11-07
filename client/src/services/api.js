@@ -5,7 +5,10 @@
 
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// Usar variable de entorno si existe, sino usar ruta relativa (para proxy de Vite)
+const API_URL = import.meta.env.VITE_API_URL 
+  ? `${import.meta.env.VITE_API_URL}/api`
+  : '/api';
 
 // Crear instancia de axios
 const api = axios.create({

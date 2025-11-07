@@ -50,9 +50,9 @@ exports.register = async (req, res) => {
       petId: result.petId 
     });
     
-    // Generate JWT token only for new users
+    // Generate JWT token for all non-authenticated users (new or existing)
     let token = null;
-    if (!req.user && isNewUser) {
+    if (!req.user) {
       token = generateToken({ id: userId, email: userEmail, dni: userDni });
     }
     

@@ -5,7 +5,8 @@ import { Lock, Login } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 
 const ProtectedRoute = ({ children }) => {
-  const token = localStorage.getItem('authToken');
+  // Buscar token en ambas ubicaciones para compatibilidad
+  const token = localStorage.getItem('token') || localStorage.getItem('authToken');
   
   if (!token) {
     return (

@@ -1,29 +1,106 @@
 /**
  * ReportStrayPage - REFACTORIZADO
  * Página para reportar perros callejeros simplificada
+ * REQUIERE AUTENTICACIÓN: Solo usuarios logueados pueden reportar
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Container, Typography, Box, Paper, Button, Alert,
-  Stepper, Step, StepLabel, Grid
+  Stepper, Step, StepLabel, Grid, StepIcon
 } from '@mui/material';
-import { Send, ArrowBack, NavigateNext, NavigateBefore } from '@mui/icons-material';
+import { Send, ArrowBack, NavigateNext, Pets, LocationOn, Person } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useStrayReportForm } from '../hooks/useStrayReportForm';
 import ReportFormBasic from '../components/features/strayReports/ReportFormBasic';
 import LocationPicker from '../components/features/strayReports/LocationPicker';
+import { isAuthenticated } from '../services/authService';
+import StepProgress from '../components/common/StepProgress';
 
 const STEPS = [
   'Información del Perro',
   'Ubicación del Avistamiento'
 ];
 
+// Icono personalizado de patita para el stepper (copiado de RegisterPage)
+const PawStepIcon = (props) => {
+  const { active, completed, icon } = props;
+
+  return (
+    <Box
+      sx={{
+        position: 'relative',
+        width: { xs: 50, sm: 60, md: 70 },
+        height: { xs: 50, sm: 60, md: 70 },
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: completed || active ? '#428cef' : '#ffffff',
+        borderRadius: '50%',
+        border: '3px solid',
+        borderColor: completed || active ? '#428cef' : '#e0e0e0',
+        boxShadow: completed || active ? '0 2px 8px rgba(66, 140, 239, 0.3)' : '0 1px 3px rgba(0, 0, 0, 0.1)',
+        transition: 'all 0.3s ease',
+      }}
+    >
+      {/* Imagen de la patita */}
+      <Box
+        component="img"
+        src="/images/cards/paw-darkblue.svg"
+        alt="paw"
+        sx={{
+          width: '80%',
+          height: '80%',
+          position: 'absolute',
+          filter: completed
+            ? 'brightness(0) invert(1)' // Blanco cuando está completado
+            : active
+              ? 'brightness(0) invert(1)' // Blanco cuando está activo
+              : 'grayscale(100%) brightness(1.8)',
+          opacity: completed ? 1 : active ? 1 : 0.5,
+          transition: 'all 0.3s ease',
+        }}
+      />
+      {/* Número dentro de la patita */}
+      <Typography
+        sx={{
+          position: 'relative',
+          zIndex: 2,
+          fontSize: { xs: '0.85rem', sm: '0.95rem', md: '1.1rem' },
+          fontWeight: 700,
+          color: completed || active ? '#428cef' : '#ffffff',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          mt: { xs: '12px', sm: '14px', md: '16px' },
+          transition: 'all 0.3s ease',
+          textShadow: !completed && !active ? '0 1px 2px rgba(0, 0, 0, 0.3)' : 'none',
+        }}
+      >
+        {icon}
+      </Typography>
+    </Box>
+  );
+};
+
 const ReportStrayPage = () => {
   const navigate = useNavigate();
   const [activeStep, setActiveStep] = useState(0);
-  
+
+  // Verificar autenticación al cargar la página
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      console.warn('⚠️ Usuario no autenticado intentando reportar');
+      navigate('/login', {
+        state: {
+          from: '/report-stray',
+          message: 'Debes iniciar sesión para reportar un perro callejero'
+        }
+      });
+    }
+  }, [navigate]);
+
   const {
     formData,
     errors,
@@ -31,10 +108,49 @@ const ReportStrayPage = () => {
     success,
     updateField,
     updateLocation,
-    handleSubmit
+    handleSubmit,
+    setFieldError
   } = useStrayReportForm();
 
   const handleNext = () => {
+    // Validar campos del paso actual antes de avanzar
+    if (activeStep === 0) {
+      const newErrors = {};
+
+      if (!formData.breed || !formData.breed.trim()) {
+        newErrors.breed = 'La raza es requerida';
+      }
+
+      if (!formData.size) {
+        newErrors.size = 'El tamaño es requerido';
+      }
+
+      if (!formData.colors || formData.colors.length === 0) {
+        newErrors.colors = 'Selecciona al menos un color';
+      }
+
+      if (!formData.description || !formData.description.trim()) {
+        newErrors.description = 'La descripción es requerida';
+      }
+
+      // ❗ VALIDACIÓN OBLIGATORIA: La foto es requerida
+      if (!formData.photo) {
+        newErrors.photo = '¡La foto es obligatoria! Por favor toma o sube una foto del perro.';
+      }
+
+      // Si hay errores, no avanzar
+      if (Object.keys(newErrors).length > 0) {
+        // Establecer errores
+        Object.keys(newErrors).forEach(key => {
+          setFieldError(key, newErrors[key]);
+        });
+
+        // Scroll hacia arriba para ver los errores
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+    }
+
     setActiveStep((prevStep) => prevStep + 1);
   };
 
@@ -45,7 +161,7 @@ const ReportStrayPage = () => {
   const onSubmit = async (e) => {
     e.preventDefault();
     const result = await handleSubmit();
-    
+
     if (result.success) {
       // El hook ya maneja la navegación
     }
@@ -77,41 +193,47 @@ const ReportStrayPage = () => {
   };
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
+    <Container maxWidth="lg" sx={{ pt: { xs: 10, sm: 12, md: 14 }, pb: 6 }}>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
         {/* Header */}
-        <Box sx={{ mb: 4 }}>
-          <Button
-            startIcon={<ArrowBack />}
-            onClick={() => navigate('/map')}
-            sx={{ mb: 2, color: '#667eea' }}
-          >
-            Volver al mapa
-          </Button>
-          
-          <Typography 
-            variant="h3" 
-            sx={{ 
+        <Box sx={{ mb: 6, textAlign: 'center' }}>
+          <Typography
+            variant="h3"
+            sx={{
               fontWeight: 700,
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
               backgroundClip: 'text',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
-              mb: 1
+              mb: 2,
+              fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' }
             }}
           >
-            🐕 Reportar Perro Callejero
+            Reportar Perro Callejero
           </Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ mb: 1 }}>
+          <Typography
+            variant="body1"
+            sx={{
+              color: '#64748b',
+              fontWeight: 500,
+              fontSize: '1.1rem',
+              maxWidth: '600px',
+              mx: 'auto'
+            }}
+          >
             Ayuda a un perro en situación de calle reportando su ubicación
           </Typography>
-          {formData.reporterName && (
-            <Alert severity="info" sx={{ mt: 2 }}>
-              👤 Reportando como: <strong>{formData.reporterName}</strong>
+
+          {!formData.reporterName && (
+            <Alert
+              severity="warning"
+              sx={{ mt: 3, maxWidth: '600px', mx: 'auto' }}
+            >
+              Por favor, inicia sesión para reportar un perro callejero
             </Alert>
           )}
         </Box>
@@ -130,43 +252,75 @@ const ReportStrayPage = () => {
           </Alert>
         )}
 
-        {/* Stepper */}
-        <Paper elevation={0} sx={{ p: 3, mb: 3, backgroundColor: '#f8f9fa', borderRadius: 3 }}>
-          <Stepper activeStep={activeStep}>
-            {STEPS.map((label) => (
-              <Step key={label}>
-                <StepLabel
-                  sx={{
-                    '& .MuiStepLabel-label': {
-                      color: '#64748b',
-                      fontWeight: 500
-                    },
-                    '& .MuiStepLabel-label.Mui-active': {
-                      color: '#667eea',
-                      fontWeight: 600
-                    },
-                    '& .MuiStepLabel-label.Mui-completed': {
-                      color: '#10b981',
-                      fontWeight: 600
-                    }
-                  }}
-                >
-                  {label}
-                </StepLabel>
-              </Step>
-            ))}
-          </Stepper>
-        </Paper>
+        {/* Stepper con patitas y números */}
+        <Stepper
+          activeStep={activeStep}
+          sx={{
+            mb: 4,
+            mt: 2,
+            '& .MuiStepLabel-root': {
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+            },
+            '& .MuiStepLabel-iconContainer': {
+              paddingRight: 0,
+            },
+            '& .MuiStepLabel-labelContainer': {
+              textAlign: 'center',
+            },
+            '& .MuiStepLabel-label': {
+              fontWeight: 600,
+              fontSize: { xs: '0.75rem', sm: '0.85rem', md: '0.9rem' },
+              mt: { xs: 1, sm: 1.2, md: 1.5 },
+              textAlign: 'center',
+            },
+            '& .MuiStepLabel-label.Mui-active': {
+              color: '#428cef',
+              fontWeight: 700,
+            },
+            '& .MuiStepLabel-label.Mui-completed': {
+              color: '#428cef',
+              fontWeight: 600,
+            },
+            '& .MuiStepConnector-root': {
+              top: { xs: 25, sm: 30, md: 35 }, // Ajustar posición según tamaño de patita
+              left: { xs: 'calc(-50% + 25px)', sm: 'calc(-50% + 30px)', md: 'calc(-50% + 35px)' },
+              right: { xs: 'calc(50% + 25px)', sm: 'calc(50% + 30px)', md: 'calc(50% + 35px)' },
+            },
+            '& .MuiStepConnector-line': {
+              borderColor: '#e0e0e0',
+              borderTopWidth: { xs: 2, md: 3 }, // Línea más delgada en móvil
+            },
+            '& .MuiStepConnector-root.Mui-active .MuiStepConnector-line': {
+              borderColor: '#428cef',
+            },
+            '& .MuiStepConnector-root.Mui-completed .MuiStepConnector-line': {
+              borderColor: '#428cef',
+            },
+          }}
+        >
+          {STEPS.map((label) => (
+            <Step key={label}>
+              <StepLabel StepIconComponent={PawStepIcon}>
+                {label}
+              </StepLabel>
+            </Step>
+          ))}
+        </Stepper>
 
         {/* Formulario con pasos */}
         <form onSubmit={onSubmit}>
-          <Paper 
-            elevation={3} 
-            sx={{ 
-              p: 4, 
+          <Paper
+            elevation={0}
+            sx={{
+              p: 4,
               borderRadius: 3,
               minHeight: '500px',
-              background: '#ffffff'
+              background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(249, 250, 251, 0.98) 100%)',
+              backdropFilter: 'blur(20px)',
+              border: '1px solid rgba(226, 232, 240, 0.5)',
+              boxShadow: '0 8px 25px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.04)'
             }}
           >
             <motion.div
@@ -223,7 +377,7 @@ const ReportStrayPage = () => {
                   transition: 'all 0.3s ease'
                 }}
               >
-                {loading ? 'Enviando...' : '📤 Enviar Reporte'}
+                {loading ? 'Enviando...' : 'Enviar Reporte'}
               </Button>
             ) : (
               <Button
@@ -231,16 +385,16 @@ const ReportStrayPage = () => {
                 endIcon={<NavigateNext />}
                 onClick={handleNext}
                 sx={{
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  background: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)',
                   color: 'white',
                   px: 4,
                   py: 1.5,
                   fontWeight: 600,
-                  boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)',
+                  boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)',
                   '&:hover': {
-                    background: 'linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)',
+                    background: 'linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%)',
                     transform: 'translateY(-2px)',
-                    boxShadow: '0 6px 20px rgba(102, 126, 234, 0.4)'
+                    boxShadow: '0 6px 20px rgba(59, 130, 246, 0.4)'
                   },
                   transition: 'all 0.3s ease'
                 }}

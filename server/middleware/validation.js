@@ -24,9 +24,9 @@ const registerSchema = Joi.object({
       'string.pattern.base': 'El DNI debe tener exactamente 8 dígitos'
     }),
   
-  email: Joi.string().email().lowercase().trim().allow('', null).optional()
+  email: Joi.string().email({ tlds: { allow: false } }).lowercase().trim().allow('', null).optional()
     .messages({
-      'string.email': 'El email debe ser válido'
+      'string.email': 'El email debe ser válido (ejemplo: usuario@dominio.com)'
     }),
   
   password: Joi.string().min(6).max(100).allow('', null).optional()
@@ -39,9 +39,9 @@ const registerSchema = Joi.object({
       'string.pattern.base': 'El teléfono debe tener 9 dígitos'
     }),
   
-  address: Joi.string().min(10).max(255).trim().allow('', null).optional()
+  address: Joi.string().min(3).max(255).trim().allow('', null).optional()
     .messages({
-      'string.min': 'La dirección debe tener al menos 10 caracteres'
+      'string.min': 'La dirección debe tener al menos 3 caracteres'
     }),
 
   // Datos de la mascota

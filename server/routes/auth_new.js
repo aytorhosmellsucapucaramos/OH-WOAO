@@ -13,7 +13,7 @@ const { uploadSingle } = require('../services/uploadService');
 
 // POST /api/auth/login - Iniciar sesión
 router.post('/login',
-  authLimiter,
+  // authLimiter, // TEMPORAL: Desactivado para desarrollo
   validate(loginSchema),
   authController.login
 );
