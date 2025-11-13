@@ -30,6 +30,12 @@ router.get('/my-pets',
   authController.getMyPets
 );
 
+// GET /api/auth/my-reports - Obtener reportes del usuario
+router.get('/my-reports',
+  verifyToken,
+  authController.getMyReports
+);
+
 // PUT /api/auth/profile - Actualizar perfil del usuario
 router.put('/profile',
   verifyToken,

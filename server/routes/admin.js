@@ -58,10 +58,13 @@ router.get('/users', async (req, res) => {
   try {
     const [users] = await pool.query(`
       SELECT 
-        id, dni, first_name, last_name, email, phone, 
-        address, photo_path, created_at
-      FROM adopters
-      ORDER BY created_at DESC
+        a.id, a.dni, a.first_name, a.last_name, a.email, a.phone, 
+        a.address, a.photo_path, a.created_at,
+        a.role_id, a.assigned_zone, a.employee_code, a.is_active,
+        r.code as role_code, r.name as role_name
+      FROM adopters a
+      LEFT JOIN roles r ON a.role_id = r.id
+      ORDER BY a.created_at DESC
     `);
 
     res.json({
@@ -86,10 +89,14 @@ router.get('/stray-reports', async (req, res) => {
   const { pool } = require('../config/database');
   
   try {
-    // Obtener reportes con información del usuario asignado
+    // SISTEMA NORMALIZADO: Obtener reportes con estados normalizados
     const [reports] = await pool.query(`
       SELECT 
         sr.*,
+        st.code as status,
+        st.name as status_name,
+        st.color as status_color,
+        st.requires_notes as status_requires_notes,
         reporter.first_name as reporter_first_name,
         reporter.last_name as reporter_last_name,
         reporter.phone as reporter_phone,
@@ -101,11 +108,12 @@ router.get('/stray-reports', async (req, res) => {
         sizes.name as size_name,
         temperaments.name as temperament_name
       FROM stray_reports sr
+      JOIN stray_report_status_types st ON sr.status_type_id = st.id
       LEFT JOIN adopters reporter ON sr.reporter_id = reporter.id
       LEFT JOIN adopters assigned_user ON sr.assigned_to = assigned_user.id
       LEFT JOIN sizes sizes ON sr.size_id = sizes.id
       LEFT JOIN temperaments temperaments ON sr.temperament_id = temperaments.id
-      ORDER BY sr.created_at DESC
+      ORDER BY st.display_order ASC, sr.created_at DESC
     `);
 
     console.log(`✅ ${reports.length} reportes obtenidos`);
@@ -292,14 +300,14 @@ router.put('/pets/:id/card-status', async (req, res) => {
 
   try {
     const [result] = await pool.query(
-      'UPDATE pets SET card_printed = ? WHERE id = ?',
+      'UPDATE pet_documents SET card_printed = ? WHERE pet_id = ?',
       [card_printed ? 1 : 0, id]
     );
 
     if (result.affectedRows === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Mascota no encontrada'
+        message: 'Documento de mascota no encontrado'
       });
     }
 
@@ -327,51 +335,112 @@ router.put('/stray-reports/:id/status', async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
 
+  console.log(`🔍 [DEBUG] Actualizando estado del reporte:`);
+  console.log(`   - ID: ${id}`);
+  console.log(`   - Nuevo estado: '${status}' (${status.length} caracteres)`);
+
   try {
     let assigned_to = null;
 
-    // Si el estado cambia a "in_progress", asignar automáticamente a personal de seguimiento
-    if (status === 'in_progress') {
-      // Buscar personal de seguimiento disponible (role_id = 3)
-      const [followUpUsers] = await pool.query(
-        `SELECT id, first_name, last_name, employee_code 
-         FROM adopters 
-         WHERE role_id = 3 
-         ORDER BY id ASC 
-         LIMIT 1`
+    // Solo asignar automáticamente si el estado cambia a "asignado" Y no hay asignación previa
+    if (status === 'a') {
+      // Verificar si el reporte ya tiene asignación
+      const [currentReport] = await pool.query(
+        'SELECT assigned_to FROM stray_reports WHERE id = ?',
+        [id]
       );
 
-      if (followUpUsers.length > 0) {
-        assigned_to = followUpUsers[0].id;
-        console.log(`🎯 Reporte ${id} asignado automáticamente a: ${followUpUsers[0].first_name} ${followUpUsers[0].last_name} (${followUpUsers[0].employee_code})`);
+      if (currentReport.length > 0 && !currentReport[0].assigned_to) {
+        // Solo asignar automáticamente si NO hay asignación previa
+        const [followUpUsers] = await pool.query(
+          `SELECT id, first_name, last_name, employee_code 
+           FROM adopters 
+           WHERE role_id = 3 
+           ORDER BY id ASC 
+           LIMIT 1`
+        );
+
+        if (followUpUsers.length > 0) {
+          assigned_to = followUpUsers[0].id;
+          console.log(`🎯 Reporte ${id} asignado automáticamente a: ${followUpUsers[0].first_name} ${followUpUsers[0].last_name} (${followUpUsers[0].employee_code})`);
+        }
+      } else if (currentReport.length > 0 && currentReport[0].assigned_to) {
+        console.log(`🔄 Reporte ${id} ya tiene asignación manual, manteniendo assigned_to: ${currentReport[0].assigned_to}`);
+        assigned_to = currentReport[0].assigned_to; // Mantener la asignación existente
       }
     }
 
-    // Actualizar estado y asignación
-    const updateQuery = assigned_to 
-      ? 'UPDATE stray_reports SET status = ?, assigned_to = ? WHERE id = ?'
-      : 'UPDATE stray_reports SET status = ? WHERE id = ?';
+    // SISTEMA NORMALIZADO: Actualizar usando status_type_id
+    console.log(`🔧 [ADMIN] Actualizando con sistema normalizado`);
     
-    const updateParams = assigned_to 
-      ? [status, assigned_to, id]
-      : [status, id];
-
-    const [result] = await pool.query(updateQuery, updateParams);
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({
+    // Obtener el ID del estado desde la tabla normalizada
+    const [statusType] = await pool.query(
+      'SELECT id, name FROM stray_report_status_types WHERE code = ?',
+      [status]
+    );
+    
+    if (statusType.length === 0) {
+      return res.status(400).json({
         success: false,
-        message: 'Reporte no encontrado'
+        message: `Estado '${status}' no encontrado en el catálogo`
       });
     }
+    
+    const statusTypeId = statusType[0].id;
+    const statusName = statusType[0].name;
+    
+    console.log(`🎯 [ADMIN] Estado encontrado: '${statusName}' (ID: ${statusTypeId})`);
+    
+    // Actualizar tanto estado como asignación si es necesario
+    if (assigned_to) {
+      console.log(`🔍 [DEBUG] Ejecutando query (estado + asignación):`);
+      console.log(`   - Query: UPDATE stray_reports SET status_type_id = ?, assigned_to = ? WHERE id = ?`);
+      console.log(`   - Params: [${statusTypeId}, ${assigned_to}, ${id}]`);
+      
+      const [result] = await pool.query(
+        'UPDATE stray_reports SET status_type_id = ?, assigned_to = ? WHERE id = ?',
+        [statusTypeId, assigned_to, id]
+      );
+      
+      console.log(`✅ [SUCCESS] Estado y asignación actualizados correctamente`);
+      
+      if (result.affectedRows === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Reporte no encontrado'
+        });
+      }
+    } else {
+      console.log(`🔍 [DEBUG] Ejecutando query (solo estado):`);
+      console.log(`   - Query: UPDATE stray_reports SET status_type_id = ? WHERE id = ?`);
+      console.log(`   - Params: [${statusTypeId}, ${id}]`);
+      
+      const [result] = await pool.query(
+        'UPDATE stray_reports SET status_type_id = ? WHERE id = ?',
+        [statusTypeId, id]
+      );
+      
+      console.log(`✅ [SUCCESS] Estado actualizado correctamente`);
+      
+      if (result.affectedRows === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Reporte no encontrado'
+        });
+      }
+    }
 
-    // Obtener datos actualizados del reporte
+    // Obtener datos actualizados del reporte con estado normalizado
     const [updatedReport] = await pool.query(
       `SELECT sr.*, 
+              st.code as status,
+              st.name as status_name,
+              st.color as status_color,
               u.first_name as assigned_first_name, 
               u.last_name as assigned_last_name,
               u.employee_code as assigned_employee_code
        FROM stray_reports sr
+       JOIN stray_report_status_types st ON sr.status_type_id = st.id
        LEFT JOIN adopters u ON sr.assigned_to = u.id
        WHERE sr.id = ?`,
       [id]
@@ -380,17 +449,32 @@ router.put('/stray-reports/:id/status', async (req, res) => {
     res.json({
       success: true,
       message: assigned_to 
-        ? 'Estado actualizado y reporte asignado automáticamente a personal de seguimiento'
-        : 'Estado del reporte actualizado exitosamente',
+        ? `✅ Estado actualizado a "${statusName}" y reporte asignado correctamente`
+        : `✅ Estado actualizado a "${statusName}" exitosamente`,
       data: updatedReport[0]
     });
 
   } catch (error) {
-    console.error('Error al actualizar estado del reporte:', error);
+    console.error(`❌ [ERROR] Error al actualizar estado del reporte:`);
+    console.error(`   - Error code: ${error.code}`);
+    console.error(`   - Error message: ${error.message}`);
+    console.error(`   - SQL: ${error.sql}`);
+    console.error(`   - Estado intentado: '${status}' (${status.length} caracteres)`);
+    
+    if (error.code === 'WARN_DATA_TRUNCATED') {
+      console.error(`🚨 [TRUNCATION] La columna 'status' no acepta ${status.length} caracteres!`);
+      console.error(`🚨 [TRUNCATION] Necesitamos usar estados de máximo 4 caracteres o menos`);
+    }
+    
     res.status(500).json({
       success: false,
       message: 'Error al actualizar estado del reporte',
-      error: error.message
+      error: error.message,
+      debug: {
+        statusLength: status.length,
+        status: status,
+        errorCode: error.code
+      }
     });
   }
 });

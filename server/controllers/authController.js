@@ -170,6 +170,107 @@ exports.getMyPets = async (req, res) => {
 };
 
 /**
+ * Obtiene los reportes de perros callejeros del usuario autenticado
+ * GET /api/auth/my-reports
+ */
+exports.getMyReports = async (req, res) => {
+  try {
+    // Verificar si la tabla de estados normalizados existe
+    let reports;
+    
+    try {
+      // Intentar con sistema normalizado primero
+      [reports] = await pool.query(
+        `SELECT 
+          sr.*,
+          st.code as status,
+          st.name as status_name,
+          st.color as status_color,
+          breeds.name as breed_name,
+          sizes.name as size_name,
+          assigned_user.first_name as assigned_first_name,
+          assigned_user.last_name as assigned_last_name,
+          assigned_user.employee_code as assigned_employee_code
+         FROM stray_reports sr
+         JOIN stray_report_status_types st ON sr.status_type_id = st.id
+         LEFT JOIN breeds ON sr.breed_id = breeds.id
+         LEFT JOIN sizes ON sr.size_id = sizes.id
+         LEFT JOIN adopters assigned_user ON sr.assigned_to = assigned_user.id
+         WHERE sr.reporter_id = ?
+         ORDER BY sr.created_at DESC`,
+        [req.user.id]
+      );
+      
+      logger.info('✅ Usando sistema de estados normalizado');
+      
+    } catch (normalizedError) {
+      // Si falla, usar sistema antiguo
+      logger.warn('⚠️ Sistema normalizado no disponible, usando sistema antiguo');
+      
+      [reports] = await pool.query(
+        `SELECT 
+          sr.*,
+          breeds.name as breed_name,
+          sizes.name as size_name,
+          assigned_user.first_name as assigned_first_name,
+          assigned_user.last_name as assigned_last_name,
+          assigned_user.employee_code as assigned_employee_code
+         FROM stray_reports sr
+         LEFT JOIN breeds ON sr.breed_id = breeds.id
+         LEFT JOIN sizes ON sr.size_id = sizes.id
+         LEFT JOIN adopters assigned_user ON sr.assigned_to = assigned_user.id
+         WHERE sr.reporter_id = ?
+         ORDER BY sr.created_at DESC`,
+        [req.user.id]
+      );
+      
+      // Mapear estados antiguos a nuevos para compatibilidad
+      reports = reports.map(report => ({
+        ...report,
+        status: report.status || 'n', // Usar status original o default 'nuevo'
+        status_name: getStatusName(report.status || 'n'),
+        status_color: getStatusColor(report.status || 'n')
+      }));
+    }
+
+    res.status(200).json({
+      success: true,
+      reports: reports,
+      total: reports.length
+    });
+
+  } catch (error) {
+    logger.error('Get user reports error', { error: error.message, userId: req.user.id });
+    sendError(res, 'Error al obtener los reportes del usuario');
+  }
+};
+
+// Helper functions para mapeo de estados
+const getStatusName = (status) => {
+  const statusMap = {
+    'n': 'Nuevo',
+    'a': 'Asignado', 
+    'p': 'En Progreso',
+    'd': 'Completado',
+    'r': 'En Revisión',
+    'c': 'Cerrado'
+  };
+  return statusMap[status] || 'Nuevo';
+};
+
+const getStatusColor = (status) => {
+  const colorMap = {
+    'n': '#ef4444',
+    'a': '#3b82f6',
+    'p': '#8b5cf6', 
+    'd': '#10b981',
+    'r': '#f59e0b',
+    'c': '#6b7280'
+  };
+  return colorMap[status] || '#ef4444';
+};
+
+/**
  * Actualiza el perfil del usuario
  * PUT /api/auth/profile
  */

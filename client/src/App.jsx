@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'r
 import { Box } from '@mui/material'
 import Navbar from './components/Navbar'
 import BottomNav from './components/navigation/BottomNav'
-import ReportFAB from './components/navigation/ReportFAB'
 import ScrollToTop from './components/common/ScrollToTop'
 import HomePage from './pages/HomePage'
 import RegisterPage from './pages/RegisterPage'
@@ -104,8 +103,6 @@ function AppContent() {
       {/* Bottom Navigation - Solo en móvil y NO en rutas de admin/seguimiento */}
       {!isAdminRoute && !isSeguimientoRoute && <BottomNav />}
       
-      {/* FAB - Botón flotante para reportar - NO en rutas de admin/seguimiento */}
-      {!isAdminRoute && !isSeguimientoRoute && <ReportFAB />}
     </Box>
   )
 }

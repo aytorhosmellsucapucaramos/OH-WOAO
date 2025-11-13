@@ -76,16 +76,16 @@ const PetCard = ({ petData }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-5 py-4 md:py-8 px-2 md:px-4 rounded-3xl">
+    <div className="min-h-screen bg-white py-4 md:py-8 px-2 md:px-4 rounded-3xl print:bg-white print:py-0 print:px-0">
       {/* Indicador de scroll en móviles */}
-      <div className="block md:hidden text-center mb-4 animate-bounce">
+      <div className="block md:hidden text-center mb-4 animate-bounce no-print">
         <Typography variant="body2" sx={{ color: 'rgb(0, 167, 229)', fontWeight: 600 }}>
           ⬅️ Desliza para ver el carnet completo ➡️
         </Typography>
       </div>
       
       {/* Contenedor con scroll horizontal en móviles */}
-      <div className="max-w-5xl mx-auto space-y-8 overflow-x-auto pb-4">
+      <div className="max-w-5xl mx-auto space-y-8 overflow-x-auto pb-4 print:overflow-visible print:space-y-4">
         <style>{`
           /* Ocultar scrollbar en móviles pero mantener funcionalidad */
           @media (max-width: 768px) {
@@ -117,7 +117,7 @@ const PetCard = ({ petData }) => {
             /* Configuración de página */
             @page {
               size: A4 portrait;
-              margin: 0.5cm;
+              margin: 1cm;
             }
 
             /* Body y contenedor principal */
@@ -154,10 +154,8 @@ const PetCard = ({ petData }) => {
             .max-w-4xl {
               max-width: 100% !important;
               min-width: 0 !important;
-              margin: 0 auto 0.5cm !important;
+              margin: 0 auto 1cm !important;
               page-break-inside: avoid;
-              transform: scale(0.85);
-              transform-origin: top center;
             }
 
             /* Tarjetas llavero */
@@ -184,7 +182,7 @@ const PetCard = ({ petData }) => {
               box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
             }
 
-            /* Mantener bordes redondeados pero más sutiles */
+            /* Mantener bordes redondeados */
             .rounded-3xl {
               border-radius: 12px !important;
             }

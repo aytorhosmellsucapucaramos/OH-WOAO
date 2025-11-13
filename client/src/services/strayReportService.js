@@ -9,8 +9,16 @@ import api from './api';
  * Obtener todos los reportes con paginación y filtros
  */
 export const getStrayReports = async (params = {}) => {
-  const { data } = await api.get('/stray-reports', { params });
-  return data;
+  console.log('🔍 [strayReportService] getStrayReports llamado con params:', params);
+  try {
+    const { data } = await api.get('/stray-reports', { params });
+    console.log('📊 [strayReportService] Respuesta de /stray-reports:', data);
+    console.log('📊 [strayReportService] Cantidad de reportes:', data?.data?.length || 0);
+    return data;
+  } catch (error) {
+    console.error('❌ [strayReportService] Error en getStrayReports:', error);
+    throw error;
+  }
 };
 
 /**
@@ -61,6 +69,51 @@ export const getReportStats = async () => {
 export const getNearbyReports = async (latitude, longitude, radiusKm = 5) => {
   const { data } = await api.get('/stray-reports', {
     params: { latitude, longitude, radius: radiusKm }
+  });
+  return data;
+};
+
+/**
+ * Asignar reporte a una persona de seguimiento
+ */
+export const assignReport = async (reportId, assignedToId) => {
+  const { data } = await api.put(`/stray-reports/${reportId}/assign`, {
+    assignedTo: assignedToId
+  });
+  return data;
+};
+
+/**
+ * Desasignar reporte
+ */
+export const unassignReport = async (reportId) => {
+  const { data } = await api.put(`/stray-reports/${reportId}/unassign`);
+  return data;
+};
+
+/**
+ * Obtener reportes asignados (solo para personal de seguimiento)
+ */
+export const getAssignedReports = async (params = {}) => {
+  console.log('🔍 [strayReportService] getAssignedReports llamado con params:', params);
+  try {
+    const { data } = await api.get('/stray-reports/assigned', { params });
+    console.log('📊 [strayReportService] Respuesta de /stray-reports/assigned:', data);
+    console.log('📊 [strayReportService] Cantidad de reportes asignados:', data?.data?.length || 0);
+    return data;
+  } catch (error) {
+    console.error('❌ [strayReportService] Error en getAssignedReports:', error);
+    throw error;
+  }
+};
+
+/**
+ * Actualizar estado de reporte asignado (solo para personal de seguimiento)
+ */
+export const updateReportStatus = async (reportId, status, notes = '') => {
+  const { data } = await api.put(`/stray-reports/${reportId}/status`, {
+    status,
+    notes
   });
   return data;
 };

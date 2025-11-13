@@ -309,6 +309,51 @@ router.get("/my-pets", verifyToken, async (req, res) => {
   }
 });
 
+// Get user's stray reports
+router.get("/my-reports", verifyToken, async (req, res) => {
+  let connection;
+
+  try {
+    connection = await pool.getConnection();
+
+    // Obtener reportes del usuario con información de estado normalizada
+    const [reports] = await connection.query(
+      `SELECT 
+        sr.*,
+        st.code as status,
+        st.name as status_name,
+        st.color as status_color,
+        breeds.name as breed_name,
+        sizes.name as size_name,
+        assigned_user.first_name as assigned_first_name,
+        assigned_user.last_name as assigned_last_name,
+        assigned_user.employee_code as assigned_employee_code
+       FROM stray_reports sr
+       JOIN stray_report_status_types st ON sr.status_type_id = st.id
+       LEFT JOIN breeds ON sr.breed_id = breeds.id
+       LEFT JOIN sizes ON sr.size_id = sizes.id
+       LEFT JOIN adopters assigned_user ON sr.assigned_to = assigned_user.id
+       WHERE sr.reporter_id = ?
+       ORDER BY sr.created_at DESC`,
+      [req.user.id]
+    );
+
+    res.json({
+      success: true,
+      reports,
+      total: reports.length
+    });
+  } catch (error) {
+    console.error("❌ Error al obtener reportes del usuario:", error);
+    res.status(500).json({
+      success: false,
+      error: "Error al obtener reportes del usuario",
+    });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
 // Update card printed status
 router.put("/pet/:cui/card-printed", verifyToken, async (req, res) => {
   let connection;

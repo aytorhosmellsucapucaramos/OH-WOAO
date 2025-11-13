@@ -2,8 +2,37 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast, { Toaster } from 'react-hot-toast'
-import { getUploadUrl, getApiUrl } from '../utils/urls'
 import {
+  Box,
+  Container,
+  Grid,
+  Card,
+  CardContent,
+  Typography,
+  Button,
+  Chip,
+  Avatar,
+  CircularProgress,
+  Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  CardMedia,
+  Divider,
+  IconButton,
+  Tooltip,
+  Badge,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  RadioGroup,
+  FormControlLabel,
+  Radio
+} from '@mui/material'
+import { 
   Pets,
   Dashboard,
   Report,
@@ -23,15 +52,20 @@ import {
   QrCode,
   LocationOn,
   Warning,
-  Info,
   Map as MapIcon,
   Logout,
-  Phone
+  Phone,
+  Assignment,
+  Work,
+  HelpOutline,
+  Info
 } from '@mui/icons-material'
+import { getApiUrl, getUploadUrl } from '../utils/urls'
 import PetManagement from '../components/admin/PetManagement'
 import UserManagement from '../components/admin/UserManagement'
 import Analytics from '../components/admin/Analytics'
 import MunicipalUsersList from '../components/admin/MunicipalUsersList'
+import StrayReportsManagement from '../components/admin/StrayReportsManagement'
 
 const AdminDashboard = () => {
   const navigate = useNavigate()
@@ -48,6 +82,17 @@ const AdminDashboard = () => {
     cardsPrinted: 0,
     cardsPending: 0
   })
+
+  // Pagination for reports
+  const [reportsCurrentPage, setReportsCurrentPage] = useState(1)
+  const [reportsItemsPerPage, setReportsItemsPerPage] = useState(10)
+
+  // Assignment dialog states
+  const [showAssignmentDialog, setShowAssignmentDialog] = useState(false)
+  const [assignmentReportId, setAssignmentReportId] = useState(null)
+  const [assignmentReportData, setAssignmentReportData] = useState(null)
+  const [seguimientoUsers, setSeguimientoUsers] = useState([])
+  const [loadingSeguimientoUsers, setLoadingSeguimientoUsers] = useState(false)
 
   // Obtener datos del usuario del localStorage
   const [currentUser, setCurrentUser] = useState({
@@ -76,10 +121,23 @@ const AdminDashboard = () => {
 
     fetchData()
     fetchStats()
+    
+    // Refrescar datos cada 10 segundos para captar cambios de estado rápidamente
+    const interval = setInterval(() => {
+      fetchData(true) // isPolling = true
+    }, 10000)
+    
+    return () => clearInterval(interval)
   }, [])
 
-  const fetchData = async () => {
-    setLoading(true)
+  const fetchData = async (isPolling = false) => {
+    if (isPolling) {
+      console.log('🔄 [ADMIN-POLLING] Refrescando datos automáticamente...')
+    } else {
+      console.log('🔄 [ADMIN] Cargando datos iniciales...')
+      setLoading(true)
+    }
+    
     try {
       // Fetch pets
       const petsResponse = await fetch(getApiUrl('/admin/pets'))
@@ -92,12 +150,24 @@ const AdminDashboard = () => {
       const reportsResponse = await fetch(getApiUrl('/admin/stray-reports'))
       if (reportsResponse.ok) {
         const reportsData = await reportsResponse.json()
-        setStrayReports(reportsData.data || [])
+        const reports = reportsData.data || []
+        setStrayReports(reports)
+        
+        if (isPolling) {
+          console.log('📊 [ADMIN-POLLING] Reportes actualizados:', reports.length)
+          console.log('📊 [ADMIN-POLLING] Estados actuales:', reports.reduce((acc, r) => {
+            const visualStatus = r.assigned_to ? 'Asignado' : (r.status || 'Nuevo')
+            acc[visualStatus] = (acc[visualStatus] || 0) + 1
+            return acc
+          }, {}))
+        }
       }
     } catch (error) {
       console.error('Error fetching data:', error)
     } finally {
-      setLoading(false)
+      if (!isPolling) {
+        setLoading(false)
+      }
     }
   }
 
@@ -110,6 +180,35 @@ const AdminDashboard = () => {
       }
     } catch (error) {
       console.error('Error fetching stats:', error)
+    }
+  }
+
+  const fetchSeguimientoUsers = async () => {
+    setLoadingSeguimientoUsers(true)
+    try {
+      const token = localStorage.getItem('authToken')
+      const response = await fetch(getApiUrl('/admin/users'), {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        // Filtrar usuarios de seguimiento y agregar conteo de casos asignados
+        const seguimientoUsersWithWorkload = data.data
+          .filter(user => user.role_code === 'seguimiento')
+          .map(user => ({
+            ...user,
+            assignedCasesCount: 0, // Este dato vendrá de otra consulta
+            workloadStatus: 'light' // light, medium, heavy
+          }))
+
+        setSeguimientoUsers(seguimientoUsersWithWorkload)
+      }
+    } catch (error) {
+      console.error('Error fetching seguimiento users:', error)
+      toast.error('Error al cargar usuarios de seguimiento')
+    } finally {
+      setLoadingSeguimientoUsers(false)
     }
   }
 
@@ -135,6 +234,19 @@ const AdminDashboard = () => {
   }
 
   const handleStatusUpdate = async (reportId, newStatus) => {
+    // Si se cambia a "a", mostrar diálogo de asignación primero
+    if (newStatus === 'a') {
+      const report = strayReports.find(r => r.id === reportId)
+      if (report) {
+        setAssignmentReportId(reportId)
+        setAssignmentReportData(report)
+        setShowAssignmentDialog(true)
+        await fetchSeguimientoUsers() // Cargar usuarios de seguimiento
+        return
+      }
+    }
+
+    // Para otros estados, proceder normalmente
     const loadingToast = toast.loading('Actualizando estado...')
 
     try {
@@ -152,7 +264,7 @@ const AdminDashboard = () => {
         const data = await response.json()
 
         // Mostrar mensaje especial si se asignó automáticamente
-        if (newStatus === 'in_progress' && data.data?.assigned_to) {
+        if (newStatus === 'a' && data.data?.assigned_to) {
           toast.success('✅ Estado actualizado y caso asignado automáticamente', {
             id: loadingToast,
             duration: 4000,
@@ -178,6 +290,62 @@ const AdminDashboard = () => {
         id: loadingToast,
       })
       console.error('Error updating status:', error)
+    }
+  }
+
+  const handleAssignReport = async (userId) => {
+    if (!assignmentReportId || !userId) return
+
+    const loadingToast = toast.loading('Asignando caso...')
+
+    try {
+      const token = localStorage.getItem('authToken')
+      const response = await fetch(getApiUrl(`/stray-reports/${assignmentReportId}/assign`), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ assignedTo: userId })
+      })
+
+      if (response.ok) {
+        // Una vez asignado, actualizar el estado a "en progreso"
+        const statusResponse = await fetch(getApiUrl(`/admin/stray-reports/${assignmentReportId}/status`), {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ status: 'a' })
+        })
+
+        if (statusResponse.ok) {
+          toast.success('✅ Caso asignado y marcado como "En Progreso"', {
+            id: loadingToast,
+            duration: 3000,
+          })
+          setShowAssignmentDialog(false)
+          setAssignmentReportId(null)
+          setAssignmentReportData(null)
+          fetchData()
+          fetchStats()
+        } else {
+          toast.error('Caso asignado pero error al actualizar estado', {
+            id: loadingToast,
+          })
+        }
+      } else {
+        const errorData = await response.json()
+        toast.error(errorData.message || 'Error al asignar caso', {
+          id: loadingToast,
+        })
+      }
+    } catch (error) {
+      toast.error('Error de conexión', {
+        id: loadingToast,
+      })
+      console.error('Error assigning report:', error)
     }
   }
 
@@ -257,6 +425,17 @@ const AdminDashboard = () => {
     return matchesSearch && matchesStatus
   })
 
+  // Paginación para reportes
+  const reportsTotalPages = Math.ceil(filteredReports.length / reportsItemsPerPage)
+  const reportsStartIndex = (reportsCurrentPage - 1) * reportsItemsPerPage
+  const reportsEndIndex = reportsStartIndex + reportsItemsPerPage
+  const currentReports = filteredReports.slice(reportsStartIndex, reportsEndIndex)
+
+  // Resetear página cuando cambian los filtros
+  useEffect(() => {
+    setReportsCurrentPage(1)
+  }, [searchTerm, filterStatus, reportsItemsPerPage])
+
   const TabButton = ({ id, label, icon, isActive, onClick }) => (
     <button
       onClick={onClick}
@@ -300,6 +479,152 @@ const AdminDashboard = () => {
     </motion.div>
   )
 
+  const UnderReviewReportCard = ({ report, onStatusUpdate }) => {
+    const [selectedStatus, setSelectedStatus] = useState(report.status)
+    const reporterName = `${report.reporter_first_name || ''} ${report.reporter_last_name || ''}`.trim() || 'Usuario anónimo'
+
+    const handleViewLocation = () => {
+      if (report.latitude && report.longitude) {
+        const url = `https://www.google.com/maps?q=${report.latitude},${report.longitude}`
+        window.open(url, '_blank')
+      } else {
+        toast.error('No hay coordenadas disponibles')
+      }
+    }
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        whileHover={{ y: -3 }}
+        className="bg-white rounded-xl p-6 border border-purple-300 hover:border-purple-400 hover:shadow-lg transition-all duration-300"
+      >
+        {/* Header con badge de "En Revisión" */}
+        <div className="flex justify-between items-start mb-4">
+          <div className="flex-1">
+            <div className="flex items-center space-x-3 mb-2">
+              <h3 className="font-bold text-lg text-slate-900">{report.breed || 'Perro Callejero'}</h3>
+              <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                En Revisión
+              </span>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2 text-slate-600">
+                <People className="w-4 h-4" />
+                <span className="text-sm font-medium">{reporterName}</span>
+              </div>
+              <div className="flex items-center space-x-2 text-purple-600 bg-purple-50 px-3 py-1.5 rounded-lg inline-flex">
+                <CheckCircle className="w-4 h-4" />
+                <span className="text-sm font-semibold">
+                  Asignado a: {report.assigned_first_name} {report.assigned_last_name}
+                  {report.assigned_employee_code && ` (${report.assigned_employee_code})`}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Ubicación */}
+        {(report.latitude && report.longitude) && (
+          <div className="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center space-x-2 mb-2">
+                  <LocationOn className="text-slate-600 w-5 h-5" />
+                  <span className="font-semibold text-slate-900">Ubicación</span>
+                </div>
+                <p className="text-sm text-slate-700 mb-1">{report.address || 'Dirección no especificada'}</p>
+                <p className="text-xs text-slate-500">Lat: {report.latitude}, Lng: {report.longitude}</p>
+              </div>
+              <button
+                onClick={handleViewLocation}
+                className="p-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg"
+                title="Ver en Google Maps"
+              >
+                <MapIcon className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Comentarios del Personal Asignado */}
+        {report.status_notes && (
+          <div className="mb-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
+            <div className="flex items-center space-x-2 mb-2">
+              <Assignment className="text-purple-600 w-5 h-5" />
+              <span className="font-semibold text-purple-900">Comentarios del Personal</span>
+            </div>
+            <p className="text-sm text-purple-800 italic">"{report.status_notes}"</p>
+            <p className="text-xs text-purple-600 mt-2">
+              Actualizado: {report.status_updated_at ? new Date(report.status_updated_at).toLocaleString('es-PE') : 'Fecha no disponible'}
+            </p>
+          </div>
+        )}
+
+        {/* Descripción */}
+        {report.description && (
+          <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+            <p className="text-sm text-gray-700">{report.description}</p>
+          </div>
+        )}
+
+        {/* Características */}
+        <div className="mb-4 flex flex-wrap gap-2">
+          {report.size_name && (
+            <span className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold border border-slate-200">
+              {report.size_name}
+            </span>
+          )}
+          {report.temperament_name && (
+            <span className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-semibold border border-blue-200">
+              {report.temperament_name}
+            </span>
+          )}
+          {report.urgency_level && (
+            <span className="px-3 py-1.5 bg-amber-50 text-amber-700 rounded-lg text-xs font-semibold border border-amber-200">
+              Urgencia: {report.urgency_level}
+            </span>
+          )}
+        </div>
+
+        {/* Acciones: Solo cambiar estado */}
+        <div className="flex space-x-2">
+          <select
+            value={selectedStatus}
+            onChange={(e) => {
+              const newStatus = e.target.value
+              setSelectedStatus(newStatus)
+              onStatusUpdate(report.id, newStatus)
+            }}
+            className="flex-1 px-4 py-2.5 border border-slate-300 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all font-medium text-sm bg-white hover:bg-slate-50"
+          >
+            <option value="review">En Revisión</option>
+            <option value="closed">Cerrar</option>
+          </select>
+        </div>
+
+        {/* Fecha de reporte */}
+        <div className="mt-4 pt-4 border-t border-gray-200">
+          <p className="text-xs text-gray-500">
+            Reportado el: {new Date(report.created_at).toLocaleDateString('es-PE', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            })}
+          </p>
+          {report.assigned_at && (
+            <p className="text-xs text-purple-600 mt-1">
+              Asignado el: {new Date(report.assigned_at).toLocaleDateString('es-PE')}
+            </p>
+          )}
+        </div>
+      </motion.div>
+    )
+  }
+
   const PetCard = ({ pet }) => (
     <motion.div
       initial={{ opacity: 0, scale: 0.9 }}
@@ -342,14 +667,17 @@ const AdminDashboard = () => {
     const reporterName = `${report.reporter_first_name || ''} ${report.reporter_last_name || ''}`.trim() || 'Usuario anónimo'
 
     const statusConfig = {
-      active: { label: 'Activo', color: 'bg-red-50 text-red-700 border border-red-200' },
-      pending: { label: 'Pendiente', color: 'bg-amber-50 text-amber-700 border border-amber-200' },
-      in_progress: { label: 'En Progreso', color: 'bg-blue-50 text-blue-700 border border-blue-200' },
-      resolved: { label: 'Resuelto', color: 'bg-emerald-50 text-emerald-700 border border-emerald-200' },
-      closed: { label: 'Cerrado', color: 'bg-slate-100 text-slate-700 border border-slate-200' }
+      n: { label: 'Nuevo', color: 'bg-red-50 text-red-700 border border-red-200' },
+      a: { label: 'Asignado', color: 'bg-blue-50 text-blue-700 border border-blue-200' },
+      p: { label: 'En Progreso', color: 'bg-indigo-50 text-indigo-700 border border-indigo-200' },
+      d: { label: 'Completado', color: 'bg-green-50 text-green-700 border border-green-200' },
+      r: { label: 'En Revisión', color: 'bg-purple-50 text-purple-700 border border-purple-200' },
+      c: { label: 'Cerrado', color: 'bg-slate-100 text-slate-700 border border-slate-200' }
     }
 
-    const currentStatus = statusConfig[report.status] || statusConfig.active
+    // SISTEMA NORMALIZADO: Usar el estado que viene de la BD directamente
+    const actualStatus = report.status || 'n'; // Estado normalizado de BD
+    const currentStatus = statusConfig[actualStatus] || statusConfig.n
 
     const handleViewLocation = () => {
       if (report.latitude && report.longitude) {
@@ -461,11 +789,11 @@ const AdminDashboard = () => {
             }}
             className="flex-1 px-4 py-2.5 border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all font-medium text-sm bg-white hover:bg-slate-50"
           >
-            <option value="active">Activo</option>
-            <option value="pending">Pendiente</option>
-            <option value="in_progress">En Progreso</option>
-            <option value="resolved">Resuelto</option>
-            <option value="closed">Cerrado</option>
+            <option value="n">Nuevo</option>
+            <option value="a">Asignado</option>
+            <option value="d">Completado</option>
+            <option value="r">En Revisión</option>
+            <option value="c">Cerrado</option>
           </select>
           <button
             onClick={() => handleDeleteReport(report.id)}
@@ -548,10 +876,12 @@ const AdminDashboard = () => {
                 <div className="space-y-3">
                   {strayReports.slice(0, 4).map((report, index) => {
                     const statusColors = {
-                      active: 'bg-red-50 text-red-700 border-red-200',
-                      pending: 'bg-amber-50 text-amber-700 border-amber-200',
-                      in_progress: 'bg-blue-50 text-blue-700 border-blue-200',
-                      resolved: 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      n: 'bg-red-50 text-red-700 border-red-200',
+                      a: 'bg-blue-50 text-blue-700 border-blue-200',
+                      p: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+                      d: 'bg-green-50 text-green-700 border-green-200',
+                      r: 'bg-purple-50 text-purple-700 border-purple-200',
+                      c: 'bg-slate-100 text-slate-700 border-slate-200'
                     }
                     return (
                       <motion.div 
@@ -573,10 +903,13 @@ const AdminDashboard = () => {
                             {report.address || 'Sin ubicación'}
                           </p>
                         </div>
-                        <span className={`px-2 py-1 rounded-md text-xs font-semibold border ${statusColors[report.status] || statusColors.active}`}>
-                          {report.status === 'active' ? 'Activo' :
-                           report.status === 'pending' ? 'Pendiente' :
-                           report.status === 'in_progress' ? 'En Progreso' : 'Resuelto'}
+                        <span className={`px-2 py-1 rounded-md text-xs font-semibold border ${statusColors[report.status || 'n']}`}>
+                          {report.status === 'n' ? 'Nuevo' :
+                           report.status === 'a' ? 'Asignado' :
+                           report.status === 'p' ? 'En Progreso' :
+                           report.status === 'd' ? 'Completado' :
+                           report.status === 'r' ? 'En Revisión' : 
+                           report.status === 'c' ? 'Cerrado' : 'Nuevo'}
                         </span>
                       </motion.div>
                     )
@@ -673,9 +1006,10 @@ const AdminDashboard = () => {
                   className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 >
                   <option value="all">Todos los estados</option>
-                  <option value="pending">Pendiente</option>
-                  <option value="in_progress">En Progreso</option>
-                  <option value="resolved">Resuelto</option>
+                  <option value="n">Nuevo</option>
+                  <option value="a">Asignado</option>
+                  <option value="d">Completado</option>
+                  <option value="r">En Revisión</option>
                 </select>
 
                 <button
@@ -689,7 +1023,7 @@ const AdminDashboard = () => {
 
             <AnimatePresence mode="popLayout">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {filteredReports.map((report) => (
+                {currentReports.map((report) => (
                   <ReportCard key={report.id} report={report} />
                 ))}
               </div>
@@ -699,6 +1033,100 @@ const AdminDashboard = () => {
               <div className="text-center py-12">
                 <Report className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-500 text-lg">No se encontraron reportes</p>
+              </div>
+            )}
+
+            {/* Paginación */}
+            {filteredReports.length > 0 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 bg-white p-4 rounded-xl border border-slate-200">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-slate-600">Mostrar:</span>
+                  <select
+                    value={reportsItemsPerPage}
+                    onChange={(e) => setReportsItemsPerPage(Number(e.target.value))}
+                    className="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all bg-white"
+                  >
+                    <option value={5}>5</option>
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                  </select>
+                  <span className="text-sm text-slate-600">
+                    de {filteredReports.length} reporte{filteredReports.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setReportsCurrentPage(1)}
+                    disabled={reportsCurrentPage === 1}
+                    className="px-3 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    title="Primera página"
+                  >
+                    <span className="text-sm font-semibold">««</span>
+                  </button>
+                  <button
+                    onClick={() => setReportsCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={reportsCurrentPage === 1}
+                    className="px-3 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    title="Anterior"
+                  >
+                    <span className="text-sm font-semibold">«</span>
+                  </button>
+                  
+                  <span className="px-4 py-2 text-sm text-slate-700 font-medium">
+                    Página {reportsCurrentPage} de {reportsTotalPages}
+                  </span>
+
+                  <button
+                    onClick={() => setReportsCurrentPage(prev => Math.min(prev + 1, reportsTotalPages))}
+                    disabled={reportsCurrentPage === reportsTotalPages}
+                    className="px-3 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    title="Siguiente"
+                  >
+                    <span className="text-sm font-semibold">»</span>
+                  </button>
+                  <button
+                    onClick={() => setReportsCurrentPage(reportsTotalPages)}
+                    disabled={reportsCurrentPage === reportsTotalPages}
+                    className="px-3 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    title="Última página"
+                  >
+                    <span className="text-sm font-semibold">»»</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )
+
+      case 'assignments':
+        return <StrayReportsManagement />
+
+      case 'reviews':
+        return (
+          <div className="space-y-6">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0">
+              <h2 className="text-2xl font-bold text-gray-800">Reportes en Revisión</h2>
+              <Typography variant="body2" color="text.secondary">
+                Casos que requieren revisión por parte del administrador
+              </Typography>
+            </div>
+
+            <AnimatePresence mode="popLayout">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {strayReports
+                  .filter(report => report.status === 'r')
+                  .map((report) => (
+                    <UnderReviewReportCard key={report.id} report={report} onStatusUpdate={handleStatusUpdate} />
+                  ))}
+              </div>
+            </AnimatePresence>
+
+            {strayReports.filter(report => report.status === 'r').length === 0 && (
+              <div className="text-center py-12">
+                <HelpOutline className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500 text-lg">No hay reportes en revisión</p>
+                <p className="text-gray-400 text-sm mt-2">Los reportes marcados como "En Revisión" por el personal aparecerán aquí</p>
               </div>
             )}
           </div>
@@ -866,6 +1294,20 @@ const AdminDashboard = () => {
               onClick={() => setActiveTab('reports')}
             />
             <TabButton
+              id="assignments"
+              label="Asignación"
+              icon={<Assignment />}
+              isActive={activeTab === 'assignments'}
+              onClick={() => setActiveTab('assignments')}
+            />
+            <TabButton
+              id="reviews"
+              label="En Revisión"
+              icon={<HelpOutline />}
+              isActive={activeTab === 'reviews'}
+              onClick={() => setActiveTab('reviews')}
+            />
+            <TabButton
               id="users"
               label="Usuarios"
               icon={<People />}
@@ -918,6 +1360,204 @@ const AdminDashboard = () => {
       >
         <Print className="w-6 h-6" />
       </motion.button>
+
+      {/* Assignment Dialog */}
+      <Dialog
+        open={showAssignmentDialog}
+        onClose={() => setShowAssignmentDialog(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: { borderRadius: 3 }
+        }}
+      >
+        <DialogTitle sx={{ pb: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Assignment color="primary" />
+              <Typography variant="h6" fontWeight="600">
+                Asignar Caso a Personal de Seguimiento
+              </Typography>
+            </Box>
+            <Chip 
+              label={`${seguimientoUsers.length} disponibles`} 
+              color="primary" 
+              size="small" 
+            />
+          </Box>
+        </DialogTitle>
+        <DialogContent dividers>
+          {/* Report Info */}
+          {assignmentReportData && (
+            <Box sx={{ mb: 3, p: 2, bgcolor: '#f8f9fa', borderRadius: 2 }}>
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                📋 Información del Caso #{assignmentReportData.id}
+              </Typography>
+              <Grid container spacing={2} sx={{ mt: 1 }}>
+                <Grid item xs={6}>
+                  <Typography variant="body2">
+                    <strong>Ubicación:</strong> {assignmentReportData.address || 'No especificada'}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body2">
+                    <strong>Urgencia:</strong> {assignmentReportData.urgency || 'Normal'}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body2">
+                    <strong>Reportado:</strong> {new Date(assignmentReportData.created_at).toLocaleDateString('es-PE')}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body2">
+                    <strong>Raza:</strong> {assignmentReportData.breed || 'No especificada'}
+                  </Typography>
+                </Grid>
+              </Grid>
+              {assignmentReportData.description && (
+                <Typography variant="body2" sx={{ mt: 1, fontStyle: 'italic' }}>
+                  "{assignmentReportData.description.substring(0, 100)}{assignmentReportData.description.length > 100 ? '...' : ''}"
+                </Typography>
+              )}
+            </Box>
+          )}
+
+          
+          {/* Staff Selection */}
+          <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+            👥 Seleccionar Personal
+            <Tooltip title="Selecciona el personal con menor carga de trabajo para mejor distribución">
+              <IconButton size="small">
+                <HelpOutline fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Typography>
+
+          {loadingSeguimientoUsers ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress />
+              <Typography sx={{ ml: 2 }}>Cargando personal disponible...</Typography>
+            </Box>
+          ) : seguimientoUsers.length === 0 ? (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <People sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
+              <Typography color="text.secondary">
+                No hay personal de seguimiento disponible
+              </Typography>
+            </Box>
+          ) : (
+            <>
+              {/* Estadísticas del Personal */}
+              <Box sx={{ mb: 3, p: 2, bgcolor: '#e3f2fd', borderRadius: 2 }}>
+                <Typography variant="subtitle2" color="primary" gutterBottom>
+                  📊 Distribución de Carga de Trabajo
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={4}>
+                    <Box sx={{ textAlign: 'center' }}>
+                      <Typography variant="h6" color="success.main">
+                        {seguimientoUsers.filter(u => (u.assignedCasesCount || 0) <= 2).length}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Baja carga
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={4}>
+                    <Box sx={{ textAlign: 'center' }}>
+                      <Typography variant="h6" color="warning.main">
+                        {seguimientoUsers.filter(u => (u.assignedCasesCount || 0) > 2 && (u.assignedCasesCount || 0) <= 5).length}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Media carga
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={4}>
+                    <Box sx={{ textAlign: 'center' }}>
+                      <Typography variant="h6" color="error.main">
+                        {seguimientoUsers.filter(u => (u.assignedCasesCount || 0) > 5).length}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Alta carga
+                      </Typography>
+                    </Box>
+                  </Grid>
+                </Grid>
+                {seguimientoUsers.length > 0 && (
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                    💡 Recomendación: Asigna a personal con baja carga para mejor distribución
+                  </Typography>
+                )}
+              </Box>
+              
+              <Box sx={{ maxHeight: 400, overflow: 'auto' }}>
+                <RadioGroup
+                value=""
+                onChange={(e) => handleAssignReport(parseInt(e.target.value))}
+              >
+                {seguimientoUsers.map((user) => (
+                  <FormControlLabel
+                    key={user.id}
+                    value={user.id.toString()}
+                    control={<Radio />}
+                    label={
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', py: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <Avatar sx={{ bgcolor: '#428cef', width: 40, height: 40 }}>
+                            {user.first_name?.charAt(0)}{user.last_name?.charAt(0)}
+                          </Avatar>
+                          <Box>
+                            <Typography variant="body1" fontWeight="500">
+                              {user.first_name} {user.last_name}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {user.employee_code || 'Sin código'} • {user.email}
+                            </Typography>
+                          </Box>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Badge
+                            badgeContent={user.assignedCasesCount || 0}
+                            color={user.assignedCasesCount > 5 ? 'error' : user.assignedCasesCount > 2 ? 'warning' : 'success'}
+                            sx={{ mr: 2 }}
+                          >
+                            <Work sx={{ color: 'text.secondary' }} />
+                          </Badge>
+                          <Typography variant="caption" color="text.secondary">
+                            {user.assignedCasesCount === 0 ? 'Sin carga' :
+                             user.assignedCasesCount <= 2 ? 'Baja carga' :
+                             user.assignedCasesCount <= 5 ? 'Media carga' : 'Alta carga'}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    }
+                    sx={{
+                      width: '100%',
+                      m: 0,
+                      p: 1,
+                      borderRadius: 2,
+                      '&:hover': { bgcolor: '#f5f5f5' },
+                      border: '1px solid transparent',
+                      mb: 1
+                    }}
+                  />
+                ))}
+              </RadioGroup>
+              </Box>
+            </>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 3 }}>
+          <Button
+            onClick={() => setShowAssignmentDialog(false)}
+            variant="outlined"
+          >
+            Cancelar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   )
 }

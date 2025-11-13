@@ -15,7 +15,8 @@ import {
   LocationOn, Email, Phone, Home, Person, CalendarToday, Vaccines,
   Logout, Visibility, PhotoCamera, Save, Cancel, AccountCircle,
   HealthAndSafety, Cake, Palette, Description, History, Close,
-  Badge as BadgeIcon, CloudUpload, MedicalServices
+  Badge as BadgeIcon, CloudUpload, MedicalServices, Report,
+  AccessTime, Search, FilterList
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
@@ -88,6 +89,12 @@ const UserDashboard = () => {
   const [breeds, setBreeds] = useState([]);
   const [colors, setColors] = useState([]);
   
+  // Estados para reportes
+  const [myReports, setMyReports] = useState([]);
+  const [reportsLoading, setReportsLoading] = useState(false);
+  const [reportFilter, setReportFilter] = useState('all');
+  const [reportSearch, setReportSearch] = useState('');
+  
   const petsPerPage = 6; // 3 columns x 2 rows
 
   // Formatear edad de meses a texto legible
@@ -132,6 +139,7 @@ const UserDashboard = () => {
   useEffect(() => {
     fetchUserData();
     fetchUserPets();
+    fetchMyReports();
     loadCatalogs();
   }, []);
 
@@ -205,6 +213,28 @@ const UserDashboard = () => {
       setPets([]); // Asegurar array vacío en caso de error
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Función para obtener reportes del usuario
+  const fetchMyReports = async () => {
+    setReportsLoading(true);
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+      const response = await axios.get(`${getServerUrl()}/api/auth/my-reports`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.data.success) {
+        setMyReports(Array.isArray(response.data.reports) ? response.data.reports : []);
+      } else {
+        setMyReports([]);
+      }
+    } catch (err) {
+      console.error('Error fetching my reports:', err);
+      setMyReports([]);
+    } finally {
+      setReportsLoading(false);
     }
   };
 
@@ -661,18 +691,18 @@ const UserDashboard = () => {
               transition: 'all 0.3s ease',
               '&:hover': {
                 transform: 'translateY(-3px)',
-                boxShadow: '0 8px 30px rgba(37, 99, 235, 0.15)',
+                boxShadow: '0 8px 30px rgba(245, 158, 11, 0.15)',
               }
             }}>
               <CardContent>
                 <Box display="flex" alignItems="center">
-                  <Vaccines sx={{ fontSize: 40, color: '#4CAF50', mr: 2 }} />
+                  <Report sx={{ fontSize: 40, color: '#f59e0b', mr: 2 }} />
                   <Box>
                     <Typography sx={{ color: '#64748b', fontWeight: 500 }} gutterBottom>
-                      Con Vacunas
+                      Reportes Realizados
                     </Typography>
                     <Typography variant="h4" sx={{ color: '#1e293b', fontWeight: 700 }}>
-                      {safePets.filter(p => p.has_vaccination_card).length}
+                      {myReports.length}
                     </Typography>
                   </Box>
                 </Box>
@@ -709,52 +739,105 @@ const UserDashboard = () => {
           </Grid>
         </Grid>
 
-        {/* Action Buttons */}
-        <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Typography 
-              variant="h4" 
-              sx={{ 
-                fontWeight: 700,
-                color: '#1e293b',
-                background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 2
-              }}
-            >
-              <Pets sx={{ fontSize: 35, color: '#3b82f6' }} />
-              Mis Mascotas
-            </Typography>
-          </Box>
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={() => navigate('/register')}
-            sx={{ 
-              background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
-              color: 'white',
-              px: 4,
-              py: 1.5,
-              fontWeight: 600,
-              boxShadow: '0 4px 15px rgba(22, 163, 74, 0.3)',
-              '&:hover': {
-                background: 'linear-gradient(135deg, #15803d 0%, #166534 100%)',
-                transform: 'translateY(-2px)',
-                boxShadow: '0 6px 20px rgba(22, 163, 74, 0.4)',
-              },
-              transition: 'all 0.3s ease'
+        {/* Tabs Section */}
+        <Box sx={{ mb: 3 }}>
+          <Tabs
+            value={tabValue}
+            onChange={(e, newValue) => setTabValue(newValue)}
+            sx={{
+              borderBottom: '2px solid #e2e8f0',
+              '& .MuiTabs-indicator': {
+                background: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)',
+                height: 3,
+                borderRadius: '3px 3px 0 0'
+              }
             }}
           >
-            Registrar Nueva Mascota
-          </Button>
+            <Tab
+              icon={<Pets />}
+              label={`Mis Mascotas (${safePets.length})`}
+              sx={{
+                fontWeight: 600,
+                fontSize: '1rem',
+                textTransform: 'none',
+                color: tabValue === 0 ? '#1e40af' : '#64748b',
+                '&.Mui-selected': {
+                  color: '#1e40af',
+                  background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(30, 64, 175, 0.05) 100%)'
+                }
+              }}
+            />
+            <Tab
+              icon={<Report />}
+              label={`Mis Reportes (${myReports.length})`}
+              sx={{
+                fontWeight: 600,
+                fontSize: '1rem',
+                textTransform: 'none',
+                color: tabValue === 1 ? '#1e40af' : '#64748b',
+                '&.Mui-selected': {
+                  color: '#1e40af',
+                  background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(30, 64, 175, 0.05) 100%)'
+                }
+              }}
+            />
+          </Tabs>
+          
+          {/* Action Button */}
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+            {tabValue === 0 ? (
+              <Button
+                variant="contained"
+                startIcon={<Add />}
+                onClick={() => navigate('/register')}
+                sx={{ 
+                  background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
+                  color: 'white',
+                  px: 4,
+                  py: 1.5,
+                  fontWeight: 600,
+                  boxShadow: '0 4px 15px rgba(22, 163, 74, 0.3)',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #15803d 0%, #166534 100%)',
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 6px 20px rgba(22, 163, 74, 0.4)',
+                  },
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                Registrar Nueva Mascota
+              </Button>
+            ) : (
+              <Button
+                variant="contained"
+                startIcon={<Report />}
+                onClick={() => navigate('/report-stray')}
+                sx={{ 
+                  background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                  color: 'white',
+                  px: 4,
+                  py: 1.5,
+                  fontWeight: 600,
+                  boxShadow: '0 4px 15px rgba(245, 158, 11, 0.3)',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 6px 20px rgba(245, 158, 11, 0.4)',
+                  },
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                Reportar Perro Callejero
+              </Button>
+            )}
+          </Box>
         </Box>
 
-        {/* Pets Grid */}
-        <Grid container spacing={3}>
+        {/* Tab Content */}
+        {tabValue === 0 ? (
+          // Mascotas Tab
+          <Box>
+            <Grid container spacing={3}>
           {currentPets.map((pet) => (
             <Grid item xs={12} sm={6} md={4} key={pet.id}>
               <motion.div
@@ -933,25 +1016,202 @@ const UserDashboard = () => {
           </Box>
         )}
 
-        {/* No pets message */}
-        {safePets.length === 0 && (
-          <Paper sx={{ p: 4, textAlign: 'center', mt: 4 }}>
-            <Pets sx={{ fontSize: 80, color: 'text.secondary', mb: 2 }} />
-            <Typography variant="h5" gutterBottom>
-              No tienes mascotas registradas
-            </Typography>
-            <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-              Registra tu primera mascota y obtén su carnet digital
-            </Typography>
-            <Button
-              variant="contained"
-              startIcon={<Add />}
-              onClick={() => navigate('/register')}
-              size="large"
-            >
-              Registrar Primera Mascota
-            </Button>
-          </Paper>
+            {/* No pets message */}
+            {safePets.length === 0 && (
+              <Paper sx={{ p: 4, textAlign: 'center', mt: 4 }}>
+                <Pets sx={{ fontSize: 80, color: 'text.secondary', mb: 2 }} />
+                <Typography variant="h5" gutterBottom>
+                  No tienes mascotas registradas
+                </Typography>
+                <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+                  Registra tu primera mascota y obtén su carnet digital
+                </Typography>
+                <Button
+                  variant="contained"
+                  startIcon={<Add />}
+                  onClick={() => navigate('/register')}
+                  size="large"
+                >
+                  Registrar Primera Mascota
+                </Button>
+              </Paper>
+            )}
+          </Box>
+        ) : (
+          // Reportes Tab
+          <Box>
+            {/* Filtros y búsqueda */}
+            <Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+              <TextField
+                size="small"
+                placeholder="Buscar por ubicación..."
+                value={reportSearch}
+                onChange={(e) => setReportSearch(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Search sx={{ color: '#64748b' }} />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{ minWidth: 250 }}
+              />
+              <FormControl size="small" sx={{ minWidth: 150 }}>
+                <InputLabel>Estado</InputLabel>
+                <Select
+                  value={reportFilter}
+                  onChange={(e) => setReportFilter(e.target.value)}
+                  label="Estado"
+                >
+                  <MenuItem value="all">Todos</MenuItem>
+                  <MenuItem value="n">Nuevo</MenuItem>
+                  <MenuItem value="a">Asignado</MenuItem>
+                  <MenuItem value="p">En Progreso</MenuItem>
+                  <MenuItem value="d">Completado</MenuItem>
+                  <MenuItem value="r">En Revisión</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+
+            {/* Lista de reportes */}
+            {reportsLoading ? (
+              <Box display="flex" justifyContent="center" py={4}>
+                <CircularProgress />
+              </Box>
+            ) : myReports.length === 0 ? (
+              <Paper sx={{ p: 4, textAlign: 'center' }}>
+                <Report sx={{ fontSize: 80, color: 'text.secondary', mb: 2 }} />
+                <Typography variant="h5" gutterBottom>
+                  No tienes reportes de perros callejeros
+                </Typography>
+                <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+                  Ayuda a tu comunidad reportando perros que necesiten atención
+                </Typography>
+                <Button
+                  variant="contained"
+                  startIcon={<Report />}
+                  onClick={() => navigate('/report-stray')}
+                  size="large"
+                >
+                  Hacer Primer Reporte
+                </Button>
+              </Paper>
+            ) : (
+              <Grid container spacing={3}>
+                {myReports
+                  .filter(report => 
+                    reportFilter === 'all' || report.status === reportFilter
+                  )
+                  .filter(report =>
+                    reportSearch === '' || 
+                    report.address?.toLowerCase().includes(reportSearch.toLowerCase())
+                  )
+                  .map((report) => {
+                    const statusConfig = {
+                      'n': { label: 'Nuevo', color: '#ef4444', bg: '#fef2f2' },
+                      'a': { label: 'Asignado', color: '#3b82f6', bg: '#eff6ff' },
+                      'p': { label: 'En Progreso', color: '#8b5cf6', bg: '#f5f3ff' },
+                      'd': { label: 'Completado', color: '#10b981', bg: '#f0fdf4' },
+                      'r': { label: 'En Revisión', color: '#f59e0b', bg: '#fffbeb' }
+                    };
+                    
+                    const currentStatus = statusConfig[report.status] || statusConfig.n;
+                    
+                    return (
+                      <Grid item xs={12} md={6} key={report.id}>
+                        <motion.div
+                          whileHover={{ scale: 1.02 }}
+                          transition={{ type: "spring", stiffness: 300 }}
+                        >
+                          <Card
+                            elevation={0}
+                            sx={{
+                              background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(249, 250, 251, 0.98) 100%)',
+                              border: '1px solid rgba(226, 232, 240, 0.6)',
+                              borderRadius: 3,
+                              boxShadow: '0 4px 15px rgba(0,0,0,0.05)',
+                              transition: 'all 0.3s ease',
+                              '&:hover': {
+                                transform: 'translateY(-2px)',
+                                boxShadow: '0 8px 25px rgba(0,0,0,0.1)',
+                                borderColor: currentStatus.color,
+                              }
+                            }}
+                          >
+                            <CardContent>
+                              <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
+                                <Typography variant="h6" sx={{ fontWeight: 600, color: '#1e293b' }}>
+                                  Reporte #{report.id}
+                                </Typography>
+                                <Chip
+                                  label={currentStatus.label}
+                                  sx={{
+                                    backgroundColor: currentStatus.bg,
+                                    color: currentStatus.color,
+                                    fontWeight: 600,
+                                    fontSize: '0.75rem'
+                                  }}
+                                />
+                              </Box>
+                              
+                              <Box display="flex" alignItems="center" mb={1}>
+                                <LocationOn sx={{ fontSize: 16, color: '#64748b', mr: 1 }} />
+                                <Typography variant="body2" color="text.secondary">
+                                  {report.address || 'Sin ubicación'}
+                                </Typography>
+                              </Box>
+                              
+                              <Box display="flex" alignItems="center" mb={2}>
+                                <AccessTime sx={{ fontSize: 16, color: '#64748b', mr: 1 }} />
+                                <Typography variant="body2" color="text.secondary">
+                                  {new Date(report.created_at).toLocaleDateString('es-ES', {
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </Typography>
+                              </Box>
+                              
+                              {report.assigned_to && (
+                                <Box display="flex" alignItems="center" mb={2}>
+                                  <Person sx={{ fontSize: 16, color: '#64748b', mr: 1 }} />
+                                  <Typography variant="body2" color="text.secondary">
+                                    Asignado a personal de seguimiento
+                                  </Typography>
+                                </Box>
+                              )}
+                              
+                              {report.breed && (
+                                <Typography variant="body2" sx={{ mb: 1 }}>
+                                  <strong>Raza:</strong> {report.breed}
+                                </Typography>
+                              )}
+                              
+                              {report.description && (
+                                <Typography 
+                                  variant="body2" 
+                                  color="text.secondary"
+                                  sx={{ 
+                                    display: '-webkit-box',
+                                    WebkitLineClamp: 2,
+                                    WebkitBoxOrient: 'vertical',
+                                    overflow: 'hidden'
+                                  }}
+                                >
+                                  {report.description}
+                                </Typography>
+                              )}
+                            </CardContent>
+                          </Card>
+                        </motion.div>
+                      </Grid>
+                    );
+                  })}
+              </Grid>
+            )}
+          </Box>
         )}
 
         {/* Edit Pet Dialog */}

@@ -7,6 +7,7 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
 const { verifyToken } = require('../middleware/auth');
+const strayController = require('../controllers/strayController');
 const logger = require('../config/logger');
 
 // Middleware para verificar que el usuario sea personal de seguimiento
@@ -25,9 +26,14 @@ router.get('/assigned-cases', verifyToken, verifySeguimiento, async (req, res) =
   try {
     const userId = req.user.id;
     
+    // SISTEMA NORMALIZADO: Consulta con JOIN a tabla de estados
     const [cases] = await pool.query(`
       SELECT 
         sr.*,
+        st.code as status,
+        st.name as status_name,
+        st.color as status_color,
+        st.requires_notes as status_requires_notes,
         reporter.first_name as reporter_first_name,
         reporter.last_name as reporter_last_name,
         reporter.phone as reporter_phone,
@@ -42,6 +48,7 @@ router.get('/assigned-cases', verifyToken, verifySeguimiento, async (req, res) =
         urgencies.color as urgency_color,
         urgencies.priority as urgency_priority
       FROM stray_reports sr
+      JOIN stray_report_status_types st ON sr.status_type_id = st.id
       LEFT JOIN adopters reporter ON sr.reporter_id = reporter.id
       LEFT JOIN breeds ON sr.breed_id = breeds.id
       LEFT JOIN sizes ON sr.size_id = sizes.id
@@ -50,31 +57,46 @@ router.get('/assigned-cases', verifyToken, verifySeguimiento, async (req, res) =
       LEFT JOIN urgency_levels urgencies ON sr.urgency_level_id = urgencies.id
       WHERE sr.assigned_to = ?
       ORDER BY 
-        CASE sr.status
-          WHEN 'in_progress' THEN 1
-          WHEN 'active' THEN 2
-          WHEN 'resolved' THEN 3
-          WHEN 'closed' THEN 4
-        END,
+        st.display_order ASC,
         urgencies.priority DESC,
         sr.created_at DESC
     `, [userId]);
     
-    // Estadísticas del personal
-    const [stats] = await pool.query(`
-      SELECT 
-        COUNT(*) as total_assigned,
-        SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress,
-        SUM(CASE WHEN status = 'resolved' THEN 1 ELSE 0 END) as resolved,
-        SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed
-      FROM stray_reports
-      WHERE assigned_to = ?
-    `, [userId]);
+    console.log(`📊 [SEGUIMIENTO-API] Casos obtenidos con sistema normalizado: ${cases.length}`);
+    
+    // Calcular estadísticas basadas en estados normalizados
+    const realStats = cases.reduce((acc, caseItem) => {
+      acc.total_assigned++;
+      
+      // Mapear estados normalizados a estadísticas
+      switch(caseItem.status) {
+        case 'a': // Asignado
+          acc.a = (acc.a || 0) + 1;
+          break;
+        case 'p': // En Progreso 
+          acc.p = (acc.p || 0) + 1;
+          break;
+        case 'd': // Completado
+          acc.d = (acc.d || 0) + 1;
+          break;
+        case 'r': // En Revisión
+          acc.r = (acc.r || 0) + 1;
+          break;
+        default:
+          acc.other = (acc.other || 0) + 1;
+      }
+      
+      return acc;
+    }, { total_assigned: 0 });
+    
+    console.log(`📊 [SEGUIMIENTO-API] Estadísticas normalizadas calculadas:`, realStats);
+    
+    console.log(`📊 [SEGUIMIENTO-API] Enviando ${cases.length} casos normalizados al frontend`);
     
     res.json({
       success: true,
-      cases,
-      stats: stats[0],
+      cases: cases, // Usar casos con estados normalizados
+      stats: realStats, // Usar estadísticas calculadas 
       total: cases.length
     });
   } catch (error) {
@@ -88,66 +110,7 @@ router.get('/assigned-cases', verifyToken, verifySeguimiento, async (req, res) =
 });
 
 // PUT /api/seguimiento/cases/:id/status - Actualizar estado de un caso
-router.put('/cases/:id/status', verifyToken, verifySeguimiento, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { status, notes } = req.body;
-    const userId = req.user.id;
-    
-    // Validar que el caso esté asignado al usuario
-    const [assigned] = await pool.query(
-      'SELECT id FROM stray_reports WHERE id = ? AND assigned_to = ?',
-      [id, userId]
-    );
-    
-    if (assigned.length === 0) {
-      return res.status(403).json({
-        success: false,
-        message: 'Este caso no está asignado a ti'
-      });
-    }
-    
-    // Validar estados permitidos
-    const validStatuses = ['in_progress', 'resolved', 'closed'];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Estado inválido'
-      });
-    }
-    
-    // Actualizar estado
-    await pool.query(
-      'UPDATE stray_reports SET status = ?, updated_at = NOW() WHERE id = ?',
-      [status, id]
-    );
-    
-    // Si hay notas, guardarlas (en una tabla de seguimiento si existe)
-    if (notes) {
-      logger.info(`Notas de seguimiento para caso ${id}:`, notes);
-      // TODO: Implementar tabla de seguimiento de casos
-    }
-    
-    // Obtener datos actualizados
-    const [updatedCase] = await pool.query(
-      'SELECT * FROM stray_reports WHERE id = ?',
-      [id]
-    );
-    
-    res.json({
-      success: true,
-      message: 'Estado actualizado exitosamente',
-      case: updatedCase[0]
-    });
-  } catch (error) {
-    logger.error('Error updating case status:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error al actualizar estado',
-      error: error.message
-    });
-  }
-});
+router.put('/cases/:id/status', verifyToken, strayController.updateStatus);
 
 // GET /api/seguimiento/stats - Estadísticas del personal
 router.get('/stats', verifyToken, verifySeguimiento, async (req, res) => {
@@ -159,6 +122,7 @@ router.get('/stats', verifyToken, verifySeguimiento, async (req, res) => {
         COUNT(*) as total_cases,
         SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as pending,
         SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress,
+        SUM(CASE WHEN status = 'under_review' THEN 1 ELSE 0 END) as under_review,
         SUM(CASE WHEN status = 'resolved' THEN 1 ELSE 0 END) as resolved,
         SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed,
         SUM(CASE WHEN DATE(created_at) = CURDATE() THEN 1 ELSE 0 END) as today,

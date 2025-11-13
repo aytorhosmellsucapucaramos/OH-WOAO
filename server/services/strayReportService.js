@@ -114,20 +114,32 @@ async function createStrayReport(reportData, file = null) {
       breedId, sizeId, temperamentId, conditionId, urgencyId
     });
     
-    // Insertar el reporte
-    const [result] = await connection.query(`
+    // SISTEMA NORMALIZADO: Obtener ID del estado 'Nuevo'
+    const [statusType] = await pool.query(
+      'SELECT id FROM stray_report_status_types WHERE code = ?',
+      ['n']
+    );
+    
+    if (statusType.length === 0) {
+      throw new Error('Estado "Nuevo" no encontrado en el catálogo de estados');
+    }
+    
+    const newStatusId = statusType[0].id;
+    
+    // Crear el reporte principal con sistema normalizado
+    const [result] = await pool.query(`
       INSERT INTO stray_reports (
         reporter_id, reporter_name, reporter_phone, reporter_email,
         address, zone, latitude, longitude,
         breed_id, size_id, temperament_id, condition_id, urgency_level_id,
-        description, photo_path, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
+        description, photo_path, status_type_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       reporterId, reporterName, reporterPhone, reporterEmail,
       address, zone, latitude, longitude,
       breedId, sizeId, temperamentId,
       conditionId, urgencyId,
-      description, photoPath
+      description, photoPath, newStatusId
     ]);
     
     const reportId = result.insertId;
@@ -138,7 +150,7 @@ async function createStrayReport(reportData, file = null) {
       for (let i = 0; i < colorsArray.length; i++) {
         const colorId = await getCatalogId('colors', 'name', colorsArray[i]);
         if (colorId) {
-          await connection.query(
+          await pool.query(
             'INSERT INTO stray_report_colors (stray_report_id, color_id, display_order) VALUES (?, ?, ?)',
             [reportId, colorId, i]
           );
@@ -152,7 +164,7 @@ async function createStrayReport(reportData, file = null) {
     
     return {
       reportId,
-      status: 'active'
+      status: 'n'
     };
     
   } catch (error) {
@@ -176,6 +188,8 @@ async function getActiveReports() {
     const [reports] = await connection.query(`
       SELECT 
         sr.*,
+        st.code as status,
+        st.name as status_name,
         b.name as breed,
         s.name as size,
         t.name as temperament,
@@ -186,6 +200,7 @@ async function getActiveReports() {
         a.email as adopter_email,
         GROUP_CONCAT(c.name ORDER BY src.display_order SEPARATOR ', ') as colors
       FROM stray_reports sr
+      JOIN stray_report_status_types st ON sr.status_type_id = st.id
       LEFT JOIN breeds b ON sr.breed_id = b.id
       LEFT JOIN sizes s ON sr.size_id = s.id
       LEFT JOIN temperaments t ON sr.temperament_id = t.id
@@ -194,7 +209,7 @@ async function getActiveReports() {
       LEFT JOIN adopters a ON sr.reporter_id = a.id
       LEFT JOIN stray_report_colors src ON sr.id = src.stray_report_id
       LEFT JOIN colors c ON src.color_id = c.id
-      WHERE sr.status IN ('active', 'pending', 'in_progress')
+      WHERE st.code IN ('n', 'a', 'p', 'd')
       GROUP BY sr.id
       ORDER BY sr.created_at DESC
     `);

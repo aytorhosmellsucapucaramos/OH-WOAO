@@ -62,4 +62,28 @@ router.get('/stats', async (req, res) => {
   }
 });
 
+// GET /api/stray-reports/assigned - Obtener reportes asignados (solo seguimiento)
+router.get('/assigned',
+  verifyToken,
+  strayController.getAssignedReports
+);
+
+// PUT /api/stray-reports/:id/assign - Asignar reporte a seguimiento
+router.put('/:id/assign',
+  verifyToken,
+  strayController.assign
+);
+
+// PUT /api/stray-reports/:id/unassign - Desasignar reporte
+router.put('/:id/unassign',
+  verifyToken,
+  strayController.unassign
+);
+
+// PUT /api/stray-reports/:id/status - Actualizar estado (solo seguimiento asignado)
+router.put('/:id/status',
+  verifyToken,
+  strayController.updateStatus
+);
+
 module.exports = router;

@@ -13,6 +13,10 @@ const UserManagement = () => {
   const [selectedUser, setSelectedUser] = useState(null)
   const [showModal, setShowModal] = useState(false)
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
+
   useEffect(() => {
     fetchUsers()
   }, [])
@@ -40,6 +44,17 @@ const UserManagement = () => {
     
     return isRegularUser && matchesSearch
   })
+
+  // Paginación
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const currentUsers = filteredUsers.slice(startIndex, endIndex)
+
+  // Resetear página cuando cambian los filtros
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, itemsPerPage])
 
   const handleDelete = async (userId) => {
     if (!window.confirm('¿Estás seguro de eliminar este usuario? Se eliminarán también todas sus mascotas.')) return
@@ -276,7 +291,7 @@ const UserManagement = () => {
       {/* Users Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <AnimatePresence>
-          {filteredUsers.map((user) => (
+          {currentUsers.map((user) => (
             <UserCard key={user.id} user={user} />
           ))}
         </AnimatePresence>
@@ -286,6 +301,67 @@ const UserManagement = () => {
         <div className="text-center py-12">
           <People className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <p className="text-gray-500 text-lg">No se encontraron usuarios</p>
+        </div>
+      )}
+
+      {/* Paginación */}
+      {filteredUsers.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 bg-white p-4 rounded-xl border border-slate-200">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-slate-600">Mostrar:</span>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => setItemsPerPage(Number(e.target.value))}
+              className="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all bg-white"
+            >
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+            </select>
+            <span className="text-sm text-slate-600">
+              de {filteredUsers.length} usuario{filteredUsers.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+              className="px-3 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              title="Primera página"
+            >
+              <span className="text-sm font-semibold">««</span>
+            </button>
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              title="Anterior"
+            >
+              <span className="text-sm font-semibold">«</span>
+            </button>
+            
+            <span className="px-4 py-2 text-sm text-slate-700 font-medium">
+              Página {currentPage} de {totalPages}
+            </span>
+
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              title="Siguiente"
+            >
+              <span className="text-sm font-semibold">»</span>
+            </button>
+            <button
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+              className="px-3 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              title="Última página"
+            >
+              <span className="text-sm font-semibold">»»</span>
+            </button>
+          </div>
         </div>
       )}
 

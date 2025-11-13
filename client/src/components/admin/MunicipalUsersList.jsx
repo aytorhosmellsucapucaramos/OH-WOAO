@@ -49,6 +49,10 @@ const MunicipalUsersList = () => {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState({ type: '', text: '' });
   
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  
   const [editDialog, setEditDialog] = useState({
     open: false,
     user: null,
@@ -106,10 +110,6 @@ const MunicipalUsersList = () => {
         { headers: { 'Authorization': `Bearer ${token}` } }
       );
       const usersData = response.data.data || [];
-      console.log('👥 Usuarios recibidos:', usersData);
-      if (usersData.length > 0) {
-        console.log('📋 Primer usuario:', usersData[0]);
-      }
       setUsers(usersData);
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -134,7 +134,16 @@ const MunicipalUsersList = () => {
 
   const filterUsers = () => {
     // Primero filtrar solo usuarios municipales
-    const municipalUsers = users.filter(user => user.role === 'municipal' || user.employee_code);
+    const municipalUsers = users.filter(user => {
+      // Usuarios municipales tienen role_code diferente a 'user' o tienen employee_code
+      const isMunicipal = 
+        user.role_code === 'admin' || 
+        user.role_code === 'seguimiento' ||
+        user.role_code === 'super_admin' ||
+        user.employee_code ||
+        user.role_id > 1; // Cualquier role_id mayor a 1 (no user)
+      return isMunicipal;
+    });
     
     if (!searchTerm) {
       setFilteredUsers(municipalUsers);
@@ -153,6 +162,17 @@ const MunicipalUsersList = () => {
     });
     setFilteredUsers(filtered);
   };
+
+  // Paginación
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentUsers = filteredUsers.slice(startIndex, endIndex);
+
+  // Resetear página cuando cambian los filtros
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, itemsPerPage]);
 
   const handleToggleActive = async (userId, currentStatus) => {
     const action = currentStatus ? 'desactivar' : 'reactivar';
@@ -305,7 +325,7 @@ const MunicipalUsersList = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredUsers.length === 0 ? (
+                {currentUsers.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} align="center">
                       <Typography color="text.secondary">
@@ -314,7 +334,7 @@ const MunicipalUsersList = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredUsers.map((user) => (
+                  currentUsers.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell>
                         <Box>
@@ -380,6 +400,77 @@ const MunicipalUsersList = () => {
           </TableContainer>
         </CardContent>
       </Card>
+
+      {/* Paginación */}
+      {filteredUsers.length > 0 && (
+        <Box sx={{ mt: 3, p: 2, bgcolor: 'white', borderRadius: 2, border: 1, borderColor: 'grey.200' }}>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="body2" color="text.secondary">
+                Mostrar:
+              </Typography>
+              <TextField
+                select
+                size="small"
+                value={itemsPerPage}
+                onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                sx={{ minWidth: 70 }}
+              >
+                <MenuItem value={5}>5</MenuItem>
+                <MenuItem value={10}>10</MenuItem>
+                <MenuItem value={25}>25</MenuItem>
+              </TextField>
+              <Typography variant="body2" color="text.secondary">
+                de {filteredUsers.length} usuario{filteredUsers.length !== 1 ? 's' : ''}
+              </Typography>
+            </Box>
+
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Button
+                size="small"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                sx={{ minWidth: 'auto', px: 1 }}
+                title="Primera página"
+              >
+                ««
+              </Button>
+              <Button
+                size="small"
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                sx={{ minWidth: 'auto', px: 1 }}
+                title="Anterior"
+              >
+                «
+              </Button>
+
+              <Typography variant="body2" sx={{ px: 2, py: 1, fontWeight: 'medium' }}>
+                Página {currentPage} de {totalPages}
+              </Typography>
+
+              <Button
+                size="small"
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                sx={{ minWidth: 'auto', px: 1 }}
+                title="Siguiente"
+              >
+                »
+              </Button>
+              <Button
+                size="small"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                sx={{ minWidth: 'auto', px: 1 }}
+                title="Última página"
+              >
+                »»
+              </Button>
+            </Box>
+          </Box>
+        </Box>
+      )}
 
       {/* Dialog para cambiar rol */}
       <Dialog open={editDialog.open} onClose={closeEditDialog}>

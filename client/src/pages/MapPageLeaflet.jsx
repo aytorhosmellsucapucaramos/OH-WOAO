@@ -38,6 +38,8 @@ import {
   Info,
   Close,
   MyLocation,
+  KeyboardArrowUp,
+  KeyboardArrowDown,
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
 import axios from "axios";
@@ -115,6 +117,12 @@ const MapPageLeaflet = () => {
   const [usingMockData, setUsingMockData] = useState(false);
   const [activeMarkerId, setActiveMarkerId] = useState(null);
   const markerRefs = React.useRef({});
+  
+  // Estados para scroll de cards
+  const [showScrollButtons, setShowScrollButtons] = useState(false);
+  const [canScrollUp, setCanScrollUp] = useState(false);
+  const [canScrollDown, setCanScrollDown] = useState(false);
+  const scrollContainerRef = React.useRef(null);
 
   // Simulación de datos (en producción vendría de la API)
   const mockReports = [
@@ -376,6 +384,51 @@ const MapPageLeaflet = () => {
       [filterType]: value,
     }));
   };
+
+  // Funciones para scroll de cards
+  const checkScrollButtons = () => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    const hasScroll = scrollHeight > clientHeight;
+    
+    setShowScrollButtons(hasScroll);
+    setCanScrollUp(scrollTop > 0);
+    setCanScrollDown(scrollTop < scrollHeight - clientHeight - 1);
+  };
+
+  const scrollUp = () => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    container.scrollBy({ top: -200, behavior: 'smooth' });
+  };
+
+  const scrollDown = () => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    container.scrollBy({ top: 200, behavior: 'smooth' });
+  };
+
+  // Efecto para detectar cambios en scroll
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    checkScrollButtons();
+    container.addEventListener('scroll', checkScrollButtons);
+    
+    return () => container.removeEventListener('scroll', checkScrollButtons);
+  }, [filteredReports]);
+
+  // Efecto para detectar cambios de tamaño
+  useEffect(() => {
+    const resizeObserver = new ResizeObserver(checkScrollButtons);
+    if (scrollContainerRef.current) {
+      resizeObserver.observe(scrollContainerRef.current);
+    }
+    return () => resizeObserver.disconnect();
+  }, []);
 
   const formatDate = (dateString) => {
     if (!dateString) return 'Fecha no disponible';
@@ -834,25 +887,90 @@ const MapPageLeaflet = () => {
 
           {/* Lista de Reportes */}
           <Grid item xs={12} md={4}>
-            <Box sx={{
-              maxHeight: "600px",
-              overflowY: "auto",
-              pr: 1,
-              "&::-webkit-scrollbar": {
-                width: "8px",
-              },
-              "&::-webkit-scrollbar-track": {
-                background: "rgba(226, 232, 240, 0.3)",
-                borderRadius: "10px",
-              },
-              "&::-webkit-scrollbar-thumb": {
-                background: "rgba(59, 130, 246, 0.3)",
-                borderRadius: "10px",
-                "&:hover": {
-                  background: "rgba(59, 130, 246, 0.5)",
-                },
-              },
-            }}>
+            <Box sx={{ position: "relative" }}>
+              {/* Botón de scroll hacia arriba */}
+              {showScrollButtons && canScrollUp && (
+                <Box
+                  sx={{
+                    position: "absolute",
+                    top: "10px",
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    zIndex: 10,
+                    background: "rgba(255, 255, 255, 0.9)",
+                    borderRadius: "50%",
+                    width: "40px",
+                    height: "40px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                    boxShadow: "0 2px 10px rgba(0,0,0,0.15)",
+                    transition: "all 0.2s ease",
+                    "&:hover": {
+                      background: "rgba(255, 255, 255, 1)",
+                      transform: "translateX(-50%) translateY(-2px)",
+                      boxShadow: "0 4px 15px rgba(0,0,0,0.25)",
+                    }
+                  }}
+                  onClick={scrollUp}
+                >
+                  <KeyboardArrowUp sx={{ color: "#667eea" }} />
+                </Box>
+              )}
+              
+              {/* Botón de scroll hacia abajo */}
+              {showScrollButtons && canScrollDown && (
+                <Box
+                  sx={{
+                    position: "absolute",
+                    bottom: "10px",
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    zIndex: 10,
+                    background: "rgba(255, 255, 255, 0.9)",
+                    borderRadius: "50%",
+                    width: "40px",
+                    height: "40px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                    boxShadow: "0 2px 10px rgba(0,0,0,0.15)",
+                    transition: "all 0.2s ease",
+                    "&:hover": {
+                      background: "rgba(255, 255, 255, 1)",
+                      transform: "translateX(-50%) translateY(2px)",
+                      boxShadow: "0 4px 15px rgba(0,0,0,0.25)",
+                    }
+                  }}
+                  onClick={scrollDown}
+                >
+                  <KeyboardArrowDown sx={{ color: "#667eea" }} />
+                </Box>
+              )}
+              
+              <Box 
+                ref={scrollContainerRef}
+                sx={{
+                  maxHeight: "600px",
+                  overflowY: "auto",
+                  pr: 1,
+                  "&::-webkit-scrollbar": {
+                    width: "8px",
+                  },
+                  "&::-webkit-scrollbar-track": {
+                    background: "rgba(226, 232, 240, 0.3)",
+                    borderRadius: "10px",
+                  },
+                  "&::-webkit-scrollbar-thumb": {
+                    background: "rgba(59, 130, 246, 0.3)",
+                    borderRadius: "10px",
+                    "&:hover": {
+                      background: "rgba(59, 130, 246, 0.5)",
+                    },
+                  },
+                }}>
               {filteredReports.length === 0 ? (
                 <Box
                   sx={{
@@ -1009,6 +1127,7 @@ const MapPageLeaflet = () => {
                   </motion.div>
                 ))
               )}
+            </Box>
             </Box>
           </Grid>
         </Grid>

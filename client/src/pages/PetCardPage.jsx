@@ -19,9 +19,23 @@ const PetCardPage = () => {
     const style = document.createElement('style')
     style.textContent = `
       @media print {
-        /* Ocultar botón Volver en impresión */
+        /* Ocultar navbar y elementos de navegación */
+        nav,
+        .MuiAppBar-root,
+        .MuiBottomNavigation-root,
+        .MuiFab-root,
+        [class*="navbar"],
+        [class*="bottom-nav"],
+        [class*="bottomnav"],
+        [class*="fab"],
+        [class*="reportfab"] {
+          display: none !important;
+        }
+
+        /* Ocultar botón Volver y otros botones */
         .MuiButton-root,
-        .no-print {
+        .no-print,
+        button {
           display: none !important;
         }
         
@@ -36,6 +50,33 @@ const PetCardPage = () => {
         [class*="motion"] {
           animation: none !important;
           transform: none !important;
+        }
+
+        /* Ocultar scrollbars y indicadores */
+        .animate-bounce,
+        .scroll-indicator,
+        [class*="scroll"] {
+          display: none !important;
+        }
+
+        /* Asegurar que los colores se impriman */
+        * {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          color-adjust: exact !important;
+        }
+
+        /* Body y html sin márgenes extra */
+        body, html {
+          margin: 0 !important;
+          padding: 0 !important;
+          background: white !important;
+        }
+
+        /* Ocultar cualquier overlay o modal */
+        .MuiModal-root,
+        .MuiBackdrop-root {
+          display: none !important;
         }
       }
     `
@@ -118,6 +159,7 @@ const PetCardPage = () => {
             variant="outlined"
             startIcon={<ArrowBack />}
             onClick={() => navigate(-1)}
+            className="no-print"
             sx={{ 
               color: 'white', 
               borderColor: 'white',

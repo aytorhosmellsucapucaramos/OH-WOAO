@@ -54,10 +54,10 @@ import { getServerUrl, getUploadUrl } from '../utils/urls';
 import ChangePassword from '../components/profile/ChangePassword';
 
 const STATUS_CONFIG = {
-  'active': { label: 'Pendiente', color: '#ff9800', icon: <Pending /> },
-  'in_progress': { label: 'En Progreso', color: '#2196f3', icon: <HourglassEmpty /> },
-  'resolved': { label: 'Resuelto', color: '#4caf50', icon: <CheckCircle /> },
-  'closed': { label: 'Cerrado', color: '#9e9e9e', icon: <CloseIcon /> }
+  'a': { label: 'Asignado', color: '#ff9800', icon: <Pending /> },
+  'p': { label: 'En Progreso', color: '#2196f3', icon: <HourglassEmpty /> },
+  'd': { label: 'Completado', color: '#4caf50', icon: <CheckCircle /> },
+  'r': { label: 'En Revisión', color: '#9c27b0', icon: <Info /> }
 };
 
 const SeguimientoDashboard = () => {
@@ -74,6 +74,7 @@ const SeguimientoDashboard = () => {
   const [notes, setNotes] = useState('');
   const [lastUpdate, setLastUpdate] = useState(null);
   const [, setUpdateTicker] = useState(0); // Para forzar re-render del tiempo
+  const [activeTab, setActiveTab] = useState('active'); // 'active' | 'completed'
 
   // Verificar autenticación al cargar
   useEffect(() => {
@@ -139,21 +140,41 @@ const SeguimientoDashboard = () => {
         return;
       }
       
+      console.log('🔍 [SeguimientoDashboard] Iniciando fetchAssignedCases...');
+      
       const response = await axios.get(`${getServerUrl()}/api/seguimiento/assigned-cases`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
+      console.log('📊 [SeguimientoDashboard] Respuesta del backend:', response);
+      console.log('📊 [SeguimientoDashboard] Datos de respuesta:', response.data);
+      console.log('📊 [SeguimientoDashboard] Casos obtenidos:', response.data.cases?.length || 0);
+      console.log('📊 [SeguimientoDashboard] Estadísticas obtenidas:', response.data.stats);
+
       if (response.data.success) {
+        console.log('🔄 [SEGUIMIENTO] Datos recibidos del servidor:', response.data.cases?.length || 0, 'casos');
+        
         setCases(response.data.cases || []);
         setStats(response.data.stats || {});
         setLastUpdate(new Date());
         
-        if (showToast) {
-          toast.success('✅ Casos actualizados', { duration: 2000 });
+        console.log('✅ [SeguimientoDashboard] Datos cargados exitosamente');
+        if (response.data.cases) {
+          console.log('📊 [SeguimientoDashboard] Casos por estado:', response.data.cases.reduce((acc, c) => {
+            acc[c.status] = (acc[c.status] || 0) + 1;
+            return acc;
+          }, {}));
+          
+          // DEBUG: Mostrar detalles de cada caso
+          response.data.cases.forEach(c => {
+            console.log(`📋 [SEGUIMIENTO] Caso ${c.id}: status='${c.status}', assigned_to='${c.assigned_to}', notes='${c.status_notes?.substring(0, 30)}...'`);
+          });
         }
+      } else {
+        console.log('❌ [SeguimientoDashboard] Respuesta no exitosa:', response.data);
       }
     } catch (error) {
-      console.error('Error fetching assigned cases:', error);
+      console.error('❌ [SeguimientoDashboard] Error fetching assigned cases:', error);
       
       // Si es error 401, redirigir al login
       if (error.response?.status === 401) {
@@ -176,21 +197,60 @@ const SeguimientoDashboard = () => {
   };
 
   const handleUpdateStatus = async () => {
-    if (!selectedCase || !newStatus) return;
+    console.log(`🚀 [SEGUIMIENTO-FRONTEND] Iniciando actualización de estado...`);
+    console.log(`🚀 [SEGUIMIENTO-FRONTEND] Caso ID: ${selectedCase?.id}`);
+    console.log(`🚀 [SEGUIMIENTO-FRONTEND] Estado actual: ${selectedCase?.status}`);
+    console.log(`🚀 [SEGUIMIENTO-FRONTEND] Nuevo estado: ${newStatus}`);
+    console.log(`🚀 [SEGUIMIENTO-FRONTEND] Notas: ${notes?.substring(0, 50)}...`);
+    
+    // Validar que si se cambia a "d" o "r", sea obligatorio agregar notas
+    if ((newStatus === 'd' || newStatus === 'r') && !notes.trim()) {
+      const statusName = newStatus === 'd' ? 'Completado' : 'En Revisión';
+      toast.error(`Es obligatorio agregar notas cuando se marca como "${statusName}"`);
+      return;
+    }
+
+    if (!selectedCase || !newStatus) {
+      console.log(`❌ [SEGUIMIENTO-FRONTEND] Falta selectedCase o newStatus`);
+      return;
+    }
 
     setUpdatingStatus(true);
     try {
       const token = localStorage.getItem('authToken');
-      const response = await axios.put(
-        `${getServerUrl()}/api/seguimiento/cases/${selectedCase.id}/status`,
-        { status: newStatus, notes },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const url = `${getServerUrl()}/api/seguimiento/cases/${selectedCase.id}/status`;
+      const payload = { status: newStatus, notes };
+      
+      console.log(`🔗 [SEGUIMIENTO-FRONTEND] URL: ${url}`);
+      console.log(`📤 [SEGUIMIENTO-FRONTEND] Payload:`, payload);
+      
+      const response = await axios.put(url, payload, { 
+        headers: { Authorization: `Bearer ${token}` } 
+      });
 
+      console.log(`📥 [SEGUIMIENTO-FRONTEND] Respuesta del servidor:`, response.data);
+      
       if (response.data.success) {
-        toast.success('Estado actualizado exitosamente');
+        console.log(`✅ [SEGUIMIENTO-FRONTEND] Actualización exitosa`);
+        toast.success(response.data.message || 'Estado actualizado correctamente');
         setShowCaseDialog(false);
-        fetchAssignedCases(); // Recargar casos
+        setSelectedCase(null);
+        setNotes('');
+        
+        // Si se completó el caso, cambiar automáticamente a pestaña de completados
+        if (newStatus === 'd') {
+          console.log(`🔄 [SEGUIMIENTO-FRONTEND] Cambiando a pestaña completados en 1 segundo...`);
+          setTimeout(() => {
+            console.log(`🔄 [SEGUIMIENTO-FRONTEND] Cambiando pestaña a completados ahora`);
+            setActiveTab('completed');
+          }, 1000);
+        }
+        
+        console.log(`🔄 [SEGUIMIENTO-FRONTEND] Refrescando datos...`);
+        // Refresh data
+        fetchAssignedCases();
+      } else {
+        console.log(`❌ [SEGUIMIENTO-FRONTEND] Respuesta no exitosa:`, response.data);
       }
     } catch (error) {
       console.error('Error updating status:', error);
@@ -322,7 +382,7 @@ const SeguimientoDashboard = () => {
         {/* Stats Cards */}
         {stats && (
           <Grid container spacing={3} sx={{ mb: 4 }}>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid item xs={12} sm={6} md={2.4}>
               <Card>
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -342,7 +402,7 @@ const SeguimientoDashboard = () => {
               </Card>
             </Grid>
 
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid item xs={12} sm={6} md={2.4}>
               <Card>
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -351,7 +411,7 @@ const SeguimientoDashboard = () => {
                     </Avatar>
                     <Box>
                       <Typography variant="h4" fontWeight="600">
-                        {stats.in_progress || 0}
+                        {stats.p || 0}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
                         En Progreso
@@ -362,7 +422,27 @@ const SeguimientoDashboard = () => {
               </Card>
             </Grid>
 
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid item xs={12} sm={6} md={2.4}>
+              <Card>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Avatar sx={{ bgcolor: '#9c27b0' }}>
+                      <Info />
+                    </Avatar>
+                    <Box>
+                      <Typography variant="h4" fontWeight="600">
+                        {stats.d || 0}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Completados
+                      </Typography>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid item xs={12} sm={6} md={2.4}>
               <Card>
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -371,10 +451,10 @@ const SeguimientoDashboard = () => {
                     </Avatar>
                     <Box>
                       <Typography variant="h4" fontWeight="600">
-                        {stats.resolved || 0}
+                        {stats.total || 0}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        Resueltos
+                        Total Casos
                       </Typography>
                     </Box>
                   </Box>
@@ -382,7 +462,7 @@ const SeguimientoDashboard = () => {
               </Card>
             </Grid>
 
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid item xs={12} sm={6} md={2.4}>
               <Card>
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -391,10 +471,10 @@ const SeguimientoDashboard = () => {
                     </Avatar>
                     <Box>
                       <Typography variant="h4" fontWeight="600">
-                        {stats.closed || 0}
+                        {stats.a || 0}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        Cerrados
+                        Asignados
                       </Typography>
                     </Box>
                   </Box>
@@ -418,6 +498,35 @@ const SeguimientoDashboard = () => {
                   size="small"
                 />
               )}
+            </Box>
+
+            {/* Pestañas */}
+            <Box sx={{ mb: 3 }}>
+              <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                <Button
+                  variant={activeTab === 'active' ? 'contained' : 'outlined'}
+                  onClick={() => {
+                    console.log('🔘 [PESTAÑA] Cambiando a Casos Activos');
+                    setActiveTab('active');
+                  }}
+                  startIcon={<HourglassEmpty />}
+                  size="small"
+                >
+                  Casos Activos ({cases.filter(c => c.status !== 'd').length})
+                </Button>
+                <Button
+                  variant={activeTab === 'completed' ? 'contained' : 'outlined'}
+                  onClick={() => {
+                    console.log('🔘 [PESTAÑA] Cambiando a Completados');
+                    setActiveTab('completed');
+                  }}
+                  startIcon={<CheckCircle />}
+                  size="small"
+                  color="success"
+                >
+                  Completados ({cases.filter(c => c.status === 'd').length})
+                </Button>
+              </Box>
             </Box>
 
             {loading ? (
@@ -444,7 +553,16 @@ const SeguimientoDashboard = () => {
               </Box>
             ) : (
               <Grid container spacing={3}>
-                {cases.map((caseItem, index) => (
+                {cases
+                  .filter(caseItem => {
+                    const shouldShow = activeTab === 'active' 
+                      ? caseItem.status !== 'd' 
+                      : caseItem.status === 'd';
+                    
+                    console.log(`🔍 [FILTRO] Caso ${caseItem.id}: status='${caseItem.status}', pestaña='${activeTab}', mostrar=${shouldShow}`);
+                    return shouldShow;
+                  })
+                  .map((caseItem, index) => (
                   <Grid item xs={12} md={6} key={caseItem.id}>
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}
@@ -456,6 +574,9 @@ const SeguimientoDashboard = () => {
                           height: '100%',
                           cursor: 'pointer',
                           transition: 'transform 0.2s, box-shadow 0.2s',
+                          opacity: caseItem.status === 'd' ? 0.85 : 1,
+                          bgcolor: caseItem.status === 'd' ? '#f8f9fa' : 'white',
+                          border: caseItem.status === 'd' ? '2px solid #4caf50' : '1px solid #e0e0e0',
                           '&:hover': {
                             transform: 'translateY(-4px)',
                             boxShadow: 4
@@ -536,6 +657,44 @@ const SeguimientoDashboard = () => {
                   </Grid>
                 ))}
               </Grid>
+            )}
+            
+            {/* Mensaje cuando no hay casos en la pestaña activa */}
+            {!loading && cases.length > 0 && cases.filter(caseItem => {
+              if (activeTab === 'active') {
+                return caseItem.status !== 'd';
+              } else {
+                return caseItem.status === 'd';
+              }
+            }).length === 0 && (
+              <Box sx={{ 
+                py: 6, 
+                textAlign: 'center',
+                bgcolor: '#f9f9f9',
+                borderRadius: 2
+              }}>
+                {activeTab === 'active' ? (
+                  <>
+                    <HourglassEmpty sx={{ fontSize: 60, color: '#ccc', mb: 2 }} />
+                    <Typography variant="h6" color="text.secondary">
+                      No tienes casos activos
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                      Los casos en progreso aparecerán aquí
+                    </Typography>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle sx={{ fontSize: 60, color: '#4caf50', mb: 2 }} />
+                    <Typography variant="h6" color="text.secondary">
+                      No tienes casos completados
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                      Los casos que completes aparecerán aquí
+                    </Typography>
+                  </>
+                )}
+              </Box>
             )}
           </CardContent>
         </Card>
@@ -632,30 +791,87 @@ const SeguimientoDashboard = () => {
                 </Box>
 
                 {/* Actualizar Estado */}
-                <Typography variant="h6" fontWeight="600" gutterBottom>
-                  Actualizar Estado
+                <Typography variant="h6" fontWeight="600" gutterBottom sx={{ mt: 3 }}>
+                  🔄 Actualizar Estado del Caso
                 </Typography>
-                <FormControl fullWidth sx={{ mb: 2 }}>
-                  <InputLabel>Estado del Caso</InputLabel>
+                
+                {/* Estado Actual */}
+                <Box sx={{ mb: 2, p: 2, bgcolor: '#f5f5f5', borderRadius: 2 }}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Estado Actual:
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {STATUS_CONFIG[selectedCase.status]?.icon}
+                    <Typography variant="body1" fontWeight="600">
+                      {STATUS_CONFIG[selectedCase.status]?.label || selectedCase.status}
+                    </Typography>
+                  </Box>
+                </Box>
+
+                <FormControl fullWidth sx={{ mb: 3 }}>
+                  <InputLabel>Nuevo Estado</InputLabel>
                   <Select
                     value={newStatus}
                     onChange={(e) => setNewStatus(e.target.value)}
-                    label="Estado del Caso"
+                    label="Nuevo Estado"
                   >
-                    <MenuItem value="in_progress">En Progreso</MenuItem>
-                    <MenuItem value="resolved">Resuelto</MenuItem>
-                    <MenuItem value="closed">Cerrado</MenuItem>
+                    <MenuItem value="p">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <HourglassEmpty sx={{ color: '#2196f3' }} />
+                        En Progreso
+                      </Box>
+                    </MenuItem>
+                    <MenuItem value="d">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <CheckCircle sx={{ color: '#4caf50' }} />
+                        Completado
+                      </Box>
+                    </MenuItem>
+                    <MenuItem value="r">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Info sx={{ color: '#9c27b0' }} />
+                        En Revisión (Requiere supervisión)
+                      </Box>
+                    </MenuItem>
                   </Select>
                 </FormControl>
+
+                {/* Notas */}
+                <Typography variant="subtitle1" fontWeight="600" gutterBottom>
+                  📝 Notas del Seguimiento
+                </Typography>
+                
+                {/* Indicador de obligatoriedad */}
+                {(newStatus === 'd' || newStatus === 'r') && (
+                  <Box sx={{ mb: 1, p: 1, bgcolor: '#fff3e0', borderRadius: 1, border: '1px solid #ffb74d' }}>
+                    <Typography variant="body2" color="warning.main">
+                      ⚠️ Las notas son obligatorias para este estado
+                    </Typography>
+                  </Box>
+                )}
 
                 <TextField
                   fullWidth
                   multiline
-                  rows={3}
-                  label="Notas (opcional)"
+                  rows={4}
+                  label={`Notas ${(newStatus === 'd' || newStatus === 'r') ? '(obligatorio)' : '(opcional)'}`}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Agrega notas sobre el progreso del caso..."
+                  placeholder={
+                    newStatus === 'd' ? 
+                    "📋 Describe cómo se resolvió el caso:\n• Acciones tomadas\n• Resultados obtenidos\n• Estado del animal\n• Observaciones finales" :
+                    newStatus === 'r' ?
+                    "🔍 Describe por qué requiere revisión:\n• Problemas encontrados\n• Dudas o complicaciones\n• Recursos adicionales necesarios" :
+                    "💬 Agrega notas sobre el progreso:\n• Acciones realizadas\n• Próximos pasos\n• Observaciones generales"
+                  }
+                  required={newStatus === 'd' || newStatus === 'r'}
+                  error={(newStatus === 'd' || newStatus === 'r') && !notes.trim()}
+                  helperText={
+                    (newStatus === 'd' || newStatus === 'r') && !notes.trim() ?
+                    "Las notas son obligatorias para estados 'Completado' y 'En Revisión'" : 
+                    "Documenta el progreso del caso para mantener un registro completo"
+                  }
+                  sx={{ mb: 2 }}
                 />
               </DialogContent>
               <DialogActions>
@@ -665,9 +881,24 @@ const SeguimientoDashboard = () => {
                 <Button 
                   variant="contained" 
                   onClick={handleUpdateStatus}
-                  disabled={updatingStatus || newStatus === selectedCase.status}
+                  disabled={updatingStatus || newStatus === selectedCase.status || ((newStatus === 'd' || newStatus === 'r') && !notes.trim())}
+                  sx={{ 
+                    bgcolor: newStatus === 'd' ? '#4caf50' : newStatus === 'r' ? '#9c27b0' : '#2196f3',
+                    '&:hover': {
+                      bgcolor: newStatus === 'd' ? '#45a049' : newStatus === 'r' ? '#8e24aa' : '#1976d2'
+                    }
+                  }}
                 >
-                  {updatingStatus ? 'Actualizando...' : 'Actualizar Estado'}
+                  {updatingStatus ? (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      🔄 Actualizando...
+                    </Box>
+                  ) : (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      {newStatus === 'd' ? '✅' : newStatus === 'r' ? '🔍' : '⏳'}
+                      Actualizar Estado
+                    </Box>
+                  )}
                 </Button>
               </DialogActions>
             </>

@@ -152,10 +152,20 @@ const ReportStrayPage = () => {
     }
 
     setActiveStep((prevStep) => prevStep + 1);
+    
+    // Scroll al inicio de la página al cambiar de paso
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 100);
   };
 
   const handleBack = () => {
     setActiveStep((prevStep) => prevStep - 1);
+    
+    // Scroll al inicio de la página al retroceder
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 100);
   };
 
   const onSubmit = async (e) => {

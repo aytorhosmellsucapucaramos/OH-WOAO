@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: localhost:3306
--- Tiempo de generación: 07-11-2025 a las 15:48:35
+-- Tiempo de generación: 12-11-2025 a las 20:45:44
 -- Versión del servidor: 8.0.30
 -- Versión de PHP: 8.3.8
 
@@ -102,7 +102,10 @@ INSERT INTO `adopters` (`id`, `first_name`, `last_name`, `dni`, `dni_photo_path`
 (5, 'adminjaja', 'jajjaj', '74513213', NULL, 'hosmellhahaha@gmail.com', '$2b$10$qBW1bDQ.73zloQQzPdvX3OkzvqQDrihfYGRR2xp9dEuC.QzTMSVEe', '945612387', 'jr andhasdkn', NULL, '2025-11-05 06:48:32', '2025-11-05 06:48:32', 2, NULL, 'ADMIN-2025-004', 1),
 (6, 'sereno', '69', '75453435', NULL, 'sereno@gmail.com', '$2b$10$8Mov4dUtZGPFur5zIRa3S.tClcTVTZhtQO5l/oywfv5B/RFLavuWi', '945612576', 'jr asfdassfgfgd', NULL, '2025-11-05 06:57:32', '2025-11-05 06:57:32', 3, 'Zona Centro', 'SEG-2025-004', 1),
 (7, 'asdhasjbdnjbs', 'hdvabskjdbasijbd', '75146132', '1762375517076-340655357.png', 'poyex31596@nyfhk.com', '$2b$10$bb7hkBVr4CyVVuvXvCE7D.So1GTHROI4QnAu09OWuUy.OhKUCM2L6', '987634532', 'av estudiante', NULL, '2025-11-05 20:45:17', '2025-11-05 20:45:17', 1, NULL, NULL, 1),
-(8, 'Tomura', 'Shigaraki', '74154377', '1762376215204-742616493.jpg', 'roger4mango@gmail.com', '$2b$10$xxp7uzA1EhFA7ubszGpcx.snlZ8DiOv4xD7WTCTIgFtnNpDHmrYRC', '945382350', 'Av.costanera norte', '1762376325476-718012251.jpg', '2025-11-05 20:56:55', '2025-11-05 20:58:45', 1, NULL, NULL, 1);
+(8, 'Tomura', 'Shigaraki', '74154377', '1762376215204-742616493.jpg', 'roger4mango@gmail.com', '$2b$10$xxp7uzA1EhFA7ubszGpcx.snlZ8DiOv4xD7WTCTIgFtnNpDHmrYRC', '945382350', 'Av.costanera norte', '1762376325476-718012251.jpg', '2025-11-05 20:56:55', '2025-11-05 20:58:45', 1, NULL, NULL, 1),
+(9, 'Juan', 'Pérez', '12345678', NULL, 'juan.perez@municipio.gob.pe', '$2b$10$TL50P6M2eWJBrfX6G7xx0e//nrtUmyF7G2cLSeIMbJ3Xz2m8lQ6M2', '987654321', 'Jr. Lima 123, Puno', NULL, '2025-11-12 16:17:51', '2025-11-12 16:17:51', 2, NULL, 'ADMIN-2025-005', 1),
+(10, 'María', 'González', '87654321', NULL, 'maria.gonzalez@municipio.gob.pe', '$2b$10$l30S5j5EvL/T5wpsodkWc.Lbsek6C.O0ZO4Uu4Razpr7XPNSGiXpi', '987654322', 'Av. Titicaca 456, Puno', NULL, '2025-11-12 16:17:51', '2025-11-12 16:17:51', 3, 'Centro', 'SEG-2025-005', 1),
+(11, 'Carlos', 'Rodríguez', '11223344', NULL, 'carlos.rodriguez@municipio.gob.pe', '$2b$10$uGkjwC9yVfJiocx/TP1Gn.v6u7UC3M3ScSaF.tmbBYNZv/biu00WK', '987654323', 'Plaza Mayor 789, Puno', NULL, '2025-11-12 16:17:51', '2025-11-12 16:17:51', 3, 'Norte', 'SEG-2025-006', 1);
 
 -- --------------------------------------------------------
 
@@ -214,8 +217,8 @@ CREATE TABLE `employee_code_counters` (
 
 INSERT INTO `employee_code_counters` (`id`, `role_code`, `year`, `last_number`, `updated_at`) VALUES
 (1, 'super_admin', 2025, 3, '2025-11-05 06:19:26'),
-(2, 'admin', 2025, 4, '2025-11-05 06:48:32'),
-(3, 'seguimiento', 2025, 4, '2025-11-05 06:57:32');
+(2, 'admin', 2025, 6, '2025-11-12 16:20:20'),
+(3, 'seguimiento', 2025, 6, '2025-11-12 16:17:51');
 
 -- --------------------------------------------------------
 
@@ -285,7 +288,6 @@ INSERT INTO `pets` (`id`, `cui`, `pet_name`, `sex`, `breed_id`, `birth_date`, `a
 (3, '77325297-7', 'firulais', 'female', 1, '2025-03-18', 7, 2, '', 2, '2025-10-31 22:25:35', '2025-11-05 04:02:56', 6),
 (4, '91812091-1', 'chimuelo', 'male', 1, '2025-08-09', 3, 2, 'Le encanta jugar con niños y otros perros. Es muy activo, disfruta salir a pasear y correr en el parque. Le gusta perseguir pelotas y dormir cerca de la familia. A veces ladra cuando está emocionado, pero es muy cariñoso y obediente.', 2, '2025-11-05 04:05:29', '2025-11-05 04:05:29', NULL),
 (5, '82048407-7', 'chibi', 'female', 1, '2025-01-24', 10, 3, 'Fue rescatado de la calle, por lo que al inicio puede mostrarse temeroso con personas desconocidas. Con el tiempo demuestra mucho cariño y fidelidad. No le gustan los movimientos bruscos ni los gritos. Está en proceso de adaptación y entrenamiento básico.', 3, '2025-11-05 04:08:19', '2025-11-05 04:08:19', NULL),
-(6, '65635464-4', 'kuchi', 'female', 1, '2025-01-09', 10, 3, 'Aún está aprendiendo a no morder zapatos ni correr detrás de las bicicletas. Ama explorar todo lo que ve y es muy fácil de motivar con premios. Se lleva bien con otros perros y niños pequeños. Le gusta dormir en el sofá.', 7, '2025-11-05 20:45:17', '2025-11-05 20:45:17', NULL),
 (7, '12325747-7', 'Rover', 'male', 2077, '2025-04-13', 7, 3, 'Un perro grande de 10 metros', 8, '2025-11-05 20:56:55', '2025-11-05 20:56:55', NULL),
 (8, '59150767-7', 'pelusa', 'male', 1, '2025-01-09', 10, 2, 'muy amigable', 2, '2025-11-07 14:04:35', '2025-11-07 14:51:27', NULL);
 
@@ -313,9 +315,8 @@ INSERT INTO `pet_colors` (`id`, `pet_id`, `color_id`, `display_order`, `created_
 (3, 3, 1, 0, '2025-10-31 22:25:35'),
 (4, 4, 8, 0, '2025-11-05 04:05:29'),
 (5, 5, 1, 0, '2025-11-05 04:08:19'),
-(6, 6, 11, 0, '2025-11-05 20:45:17'),
 (7, 7, 1, 0, '2025-11-05 20:56:55'),
-(9, 8, 2, 0, '2025-11-07 14:51:46');
+(10, 8, 2, 0, '2025-11-07 16:08:24');
 
 -- --------------------------------------------------------
 
@@ -346,9 +347,8 @@ INSERT INTO `pet_documents` (`id`, `pet_id`, `photo_frontal_path`, `photo_poster
 (3, 3, '1761949534995-708269956.jpg', '1761949534998-548560768.jpg', 'qr_77325297_7.png', 0, NULL, 0, '2025-10-31 22:25:35', '2025-10-31 22:25:35'),
 (4, 4, '1762315528952-554189868.png', '1762315528956-987748599.png', 'qr_91812091_1.png', 0, NULL, 0, '2025-11-05 04:05:29', '2025-11-05 04:05:29'),
 (5, 5, '1762315699255-72977638.png', '1762315699256-615009396.png', 'qr_82048407_7.png', 0, NULL, 0, '2025-11-05 04:08:19', '2025-11-05 04:08:19'),
-(6, 6, '1762375517078-563345872.jpg', '1762375517080-148335801.png', 'qr_65635464_4.png', 0, NULL, 0, '2025-11-05 20:45:17', '2025-11-05 20:45:17'),
 (7, 7, '1762376215417-511974491.jpg', '1762376215539-876008137.jpg', 'qr_12325747_7.png', 0, NULL, 0, '2025-11-05 20:56:55', '2025-11-05 20:56:55'),
-(8, 8, '1762524275428-619557838.png', '1762524275429-572427847.png', 'qr_59150767_7.png', 0, NULL, 0, '2025-11-07 14:04:35', '2025-11-07 14:04:35');
+(8, 8, '1762524275428-619557838.png', '1762524275429-572427847.png', 'qr_59150767_7.png', 0, NULL, 0, '2025-11-07 14:04:35', '2025-11-12 15:58:32');
 
 -- --------------------------------------------------------
 
@@ -383,9 +383,8 @@ INSERT INTO `pet_health_records` (`id`, `pet_id`, `has_vaccination_card`, `vacci
 (12, 3, 0, NULL, 0, NULL, NULL, NULL, 'no', NULL, NULL, '2025-10-31 22:25:35', '2025-10-31 22:25:35', NULL),
 (17, 4, 0, NULL, 0, NULL, NULL, 4, 'no', NULL, NULL, '2025-11-05 04:05:29', '2025-11-07 15:45:09', ''),
 (18, 5, 0, NULL, 0, NULL, NULL, NULL, 'no', NULL, NULL, '2025-11-05 04:08:19', '2025-11-05 04:08:19', NULL),
-(65, 6, 0, NULL, 0, NULL, NULL, NULL, 'no', NULL, NULL, '2025-11-05 20:45:17', '2025-11-05 20:45:17', NULL),
 (67, 7, 0, NULL, 0, NULL, NULL, NULL, 'no', NULL, NULL, '2025-11-05 20:56:55', '2025-11-05 20:56:55', NULL),
-(75, 8, 0, NULL, 0, NULL, '', 4, 'no', NULL, NULL, '2025-11-07 14:04:35', '2025-11-07 15:46:19', '');
+(75, 8, 1, NULL, 1, NULL, '', 4, 'no', NULL, NULL, '2025-11-07 14:04:35', '2025-11-07 16:08:24', '');
 
 -- --------------------------------------------------------
 
@@ -528,24 +527,28 @@ CREATE TABLE `stray_reports` (
   `urgency_level_id` int NOT NULL,
   `description` text NOT NULL,
   `photo_path` varchar(255) DEFAULT NULL,
-  `status` enum('active','in_progress','resolved','closed') DEFAULT 'active',
+  `status` enum('active','pending','in_progress','resolved','closed') DEFAULT 'active' COMMENT 'Estado del reporte: active=activo, pending=pendiente, in_progress=en progreso, resolved=resuelto, closed=cerrado',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `assigned_to` int DEFAULT NULL COMMENT 'ID del usuario asignado (personal de seguimiento)'
+  `assigned_to` int DEFAULT NULL COMMENT 'ID del usuario asignado (personal de seguimiento)',
+  `assigned_at` timestamp NULL DEFAULT NULL COMMENT 'Fecha y hora de asignación del reporte',
+  `assigned_by` int DEFAULT NULL COMMENT 'ID del usuario que asignó el reporte',
+  `status_notes` text COMMENT 'Notas adicionales sobre el estado del reporte',
+  `status_updated_at` timestamp NULL DEFAULT NULL COMMENT 'Fecha y hora de la última actualización de estado'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Reportes de perros callejeros';
 
 --
 -- Volcado de datos para la tabla `stray_reports`
 --
 
-INSERT INTO `stray_reports` (`id`, `reporter_id`, `reporter_name`, `reporter_phone`, `reporter_email`, `latitude`, `longitude`, `address`, `zone`, `breed_id`, `size_id`, `temperament_id`, `condition_id`, `urgency_level_id`, `description`, `photo_path`, `status`, `created_at`, `updated_at`, `assigned_to`) VALUES
-(2, 2, 'TONY gambino', NULL, NULL, -15.83772970, -70.03210080, 'av estudiamte', NULL, 5, 2, 5, 1, 3, 'ayuda', '1761888493106-388268421.jpg', 'active', '2025-10-31 05:28:13', '2025-10-31 05:28:13', NULL),
-(3, 2, 'TONY gambino', NULL, NULL, -15.83679277, -70.02937381, 'jr deza', NULL, 27, 2, 4, 1, 2, 'peli', '1761889810115-324089980.jpg', 'active', '2025-10-31 05:50:10', '2025-10-31 05:50:10', NULL),
-(4, 2, 'TONY gambino', NULL, NULL, -15.83807609, -70.02184426, 'av titicaca', NULL, 8, 2, 3, 2, 2, 'terrible', '1761890917298-595692104.jpg', 'resolved', '2025-10-31 06:08:37', '2025-11-05 08:29:39', NULL),
-(5, 2, 'TONY gambino', NULL, NULL, -15.83916380, -70.02846479, 'jr libertad', NULL, 6, 3, 5, 3, 2, 'ayuda peligro andante', '1761949804468-145122062.jpg', 'resolved', '2025-10-31 22:30:04', '2025-11-05 08:29:43', NULL),
-(6, 8, 'Tomura Shigaraki', NULL, NULL, -15.83647493, -70.02735889, 'Av somos volivas', NULL, 11, 1, 4, 1, 2, 'Es un perro 🐕 .....', NULL, 'in_progress', '2025-11-05 21:48:39', '2025-11-05 22:09:39', 6),
-(7, 8, 'Tomura Shigaraki', NULL, NULL, -15.84477363, -70.02545493, 'Av. Costanera ', NULL, 8, 3, 3, 3, 1, 'Es un perro 🐕..', '1762380748363-48759213.jpg', 'in_progress', '2025-11-05 22:12:28', '2025-11-05 22:26:52', 6),
-(8, 8, 'Tomura Shigaraki', NULL, NULL, -15.84002476, -70.02849267, 'Jirón Ayacucho, Laykakota, Puno, Puno', NULL, 17, 1, 6, 1, 3, 'Es una perr....', '1762381590411-87722692.jpg', 'in_progress', '2025-11-05 22:26:30', '2025-11-05 22:27:17', 6);
+INSERT INTO `stray_reports` (`id`, `reporter_id`, `reporter_name`, `reporter_phone`, `reporter_email`, `latitude`, `longitude`, `address`, `zone`, `breed_id`, `size_id`, `temperament_id`, `condition_id`, `urgency_level_id`, `description`, `photo_path`, `status`, `created_at`, `updated_at`, `assigned_to`, `assigned_at`, `assigned_by`, `status_notes`, `status_updated_at`) VALUES
+(2, 2, 'TONY gambino', NULL, NULL, -15.83772970, -70.03210080, 'av estudiamte', NULL, 5, 2, 5, 1, 3, 'ayuda', '1761888493106-388268421.jpg', 'active', '2025-10-31 05:28:13', '2025-10-31 05:28:13', NULL, NULL, NULL, NULL, NULL),
+(3, 2, 'TONY gambino', NULL, NULL, -15.83679277, -70.02937381, 'jr deza', NULL, 27, 2, 4, 1, 2, 'peli', '1761889810115-324089980.jpg', 'in_progress', '2025-10-31 05:50:10', '2025-11-12 20:24:45', 10, '2025-11-12 20:24:45', 1, NULL, NULL),
+(4, 2, 'TONY gambino', NULL, NULL, -15.83807609, -70.02184426, 'av titicaca', NULL, 8, 2, 3, 2, 2, 'terrible', '1761890917298-595692104.jpg', 'active', '2025-10-31 06:08:37', '2025-11-07 16:55:08', NULL, NULL, NULL, NULL, NULL),
+(5, 2, 'TONY gambino', NULL, NULL, -15.83916380, -70.02846479, 'jr libertad', NULL, 6, 3, 5, 3, 2, 'ayuda peligro andante', '1761949804468-145122062.jpg', 'active', '2025-10-31 22:30:04', '2025-11-07 16:55:04', NULL, NULL, NULL, NULL, NULL),
+(7, 8, 'Tomura Shigaraki', NULL, NULL, -15.84477363, -70.02545493, 'Av. Costanera ', NULL, 8, 3, 3, 3, 1, 'Es un perro 🐕..', '1762380748363-48759213.jpg', 'in_progress', '2025-11-05 22:12:28', '2025-11-12 17:29:12', 6, NULL, NULL, NULL, '2025-11-12 17:29:12'),
+(8, 8, 'Tomura Shigaraki', NULL, NULL, -15.84002476, -70.02849267, 'Jirón Ayacucho, Laykakota, Puno, Puno', NULL, 17, 1, 6, 1, 3, 'Es una perr....', '1762381590411-87722692.jpg', 'in_progress', '2025-11-05 22:26:30', '2025-11-12 20:31:07', 10, '2025-11-12 20:31:07', 1, NULL, '2025-11-12 17:29:26'),
+(9, 2, 'TONY gambino', NULL, NULL, -15.83810442, -70.02405791, 'Jirón Melgar, Laykakota, Puno, Puno', NULL, 1, 2, 2, 2, 2, 'esta muy peligroso', '1762532288343-341687879.jpg', 'in_progress', '2025-11-07 16:18:08', '2025-11-12 20:43:34', 11, '2025-11-12 20:43:34', 1, NULL, '2025-11-12 17:29:30');
 
 -- --------------------------------------------------------
 
@@ -571,9 +574,11 @@ INSERT INTO `stray_report_colors` (`id`, `stray_report_id`, `color_id`, `created
 (6, 4, 6, '2025-10-31 06:08:37'),
 (7, 5, 1, '2025-10-31 22:30:04'),
 (8, 5, 2, '2025-10-31 22:30:04'),
-(9, 6, 2, '2025-11-05 21:48:39'),
 (10, 7, 2, '2025-11-05 22:12:28'),
-(11, 8, 6, '2025-11-05 22:26:30');
+(11, 8, 6, '2025-11-05 22:26:30'),
+(12, 9, 2, '2025-11-07 16:18:08'),
+(13, 9, 1, '2025-11-07 16:18:08'),
+(14, 9, 8, '2025-11-07 16:18:08');
 
 -- --------------------------------------------------------
 
@@ -733,10 +738,14 @@ CREATE TABLE `view_stray_reports_complete` (
 ,`urgency_level_id` int
 ,`description` text
 ,`photo_path` varchar(255)
-,`status` enum('active','in_progress','resolved','closed')
+,`status` enum('active','pending','in_progress','resolved','closed')
 ,`created_at` timestamp
 ,`updated_at` timestamp
 ,`assigned_to` int
+,`assigned_at` timestamp
+,`assigned_by` int
+,`status_notes` text
+,`status_updated_at` timestamp
 ,`breed_name` varchar(100)
 ,`size_name` varchar(50)
 ,`size_code` varchar(20)
@@ -818,7 +827,7 @@ CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW 
 --
 DROP TABLE IF EXISTS `view_stray_reports_complete`;
 
-CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `view_stray_reports_complete`  AS SELECT `sr`.`id` AS `id`, `sr`.`reporter_id` AS `reporter_id`, `sr`.`reporter_name` AS `reporter_name`, `sr`.`reporter_phone` AS `reporter_phone`, `sr`.`reporter_email` AS `reporter_email`, `sr`.`latitude` AS `latitude`, `sr`.`longitude` AS `longitude`, `sr`.`address` AS `address`, `sr`.`zone` AS `zone`, `sr`.`breed_id` AS `breed_id`, `sr`.`size_id` AS `size_id`, `sr`.`temperament_id` AS `temperament_id`, `sr`.`condition_id` AS `condition_id`, `sr`.`urgency_level_id` AS `urgency_level_id`, `sr`.`description` AS `description`, `sr`.`photo_path` AS `photo_path`, `sr`.`status` AS `status`, `sr`.`created_at` AS `created_at`, `sr`.`updated_at` AS `updated_at`, `sr`.`assigned_to` AS `assigned_to`, `b`.`name` AS `breed_name`, `s`.`name` AS `size_name`, `s`.`code` AS `size_code`, `t`.`name` AS `temperament_name`, `t`.`code` AS `temperament_code`, `t`.`color` AS `temperament_color`, `rc`.`name` AS `condition_name`, `rc`.`code` AS `condition_code`, `ul`.`name` AS `urgency_name`, `ul`.`code` AS `urgency_code`, `ul`.`color` AS `urgency_color`, `ul`.`priority` AS `urgency_priority`, `a`.`first_name` AS `reporter_first_name`, `a`.`last_name` AS `reporter_last_name`, `a`.`phone` AS `reporter_phone_from_user`, `a`.`email` AS `reporter_email_from_user`, group_concat(`c`.`name` separator ', ') AS `colors` FROM ((((((((`stray_reports` `sr` left join `breeds` `b` on((`sr`.`breed_id` = `b`.`id`))) left join `sizes` `s` on((`sr`.`size_id` = `s`.`id`))) left join `temperaments` `t` on((`sr`.`temperament_id` = `t`.`id`))) left join `report_conditions` `rc` on((`sr`.`condition_id` = `rc`.`id`))) left join `urgency_levels` `ul` on((`sr`.`urgency_level_id` = `ul`.`id`))) left join `adopters` `a` on((`sr`.`reporter_id` = `a`.`id`))) left join `stray_report_colors` `src` on((`sr`.`id` = `src`.`stray_report_id`))) left join `colors` `c` on((`src`.`color_id` = `c`.`id`))) GROUP BY `sr`.`id` ;
+CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `view_stray_reports_complete`  AS SELECT `sr`.`id` AS `id`, `sr`.`reporter_id` AS `reporter_id`, `sr`.`reporter_name` AS `reporter_name`, `sr`.`reporter_phone` AS `reporter_phone`, `sr`.`reporter_email` AS `reporter_email`, `sr`.`latitude` AS `latitude`, `sr`.`longitude` AS `longitude`, `sr`.`address` AS `address`, `sr`.`zone` AS `zone`, `sr`.`breed_id` AS `breed_id`, `sr`.`size_id` AS `size_id`, `sr`.`temperament_id` AS `temperament_id`, `sr`.`condition_id` AS `condition_id`, `sr`.`urgency_level_id` AS `urgency_level_id`, `sr`.`description` AS `description`, `sr`.`photo_path` AS `photo_path`, `sr`.`status` AS `status`, `sr`.`created_at` AS `created_at`, `sr`.`updated_at` AS `updated_at`, `sr`.`assigned_to` AS `assigned_to`, `sr`.`assigned_at` AS `assigned_at`, `sr`.`assigned_by` AS `assigned_by`, `sr`.`status_notes` AS `status_notes`, `sr`.`status_updated_at` AS `status_updated_at`, `b`.`name` AS `breed_name`, `s`.`name` AS `size_name`, `s`.`code` AS `size_code`, `t`.`name` AS `temperament_name`, `t`.`code` AS `temperament_code`, `t`.`color` AS `temperament_color`, `rc`.`name` AS `condition_name`, `rc`.`code` AS `condition_code`, `ul`.`name` AS `urgency_name`, `ul`.`code` AS `urgency_code`, `ul`.`color` AS `urgency_color`, `ul`.`priority` AS `urgency_priority`, `a`.`first_name` AS `reporter_first_name`, `a`.`last_name` AS `reporter_last_name`, `a`.`phone` AS `reporter_phone_from_user`, `a`.`email` AS `reporter_email_from_user`, group_concat(`c`.`name` separator ', ') AS `colors` FROM ((((((((`stray_reports` `sr` left join `breeds` `b` on((`sr`.`breed_id` = `b`.`id`))) left join `sizes` `s` on((`sr`.`size_id` = `s`.`id`))) left join `temperaments` `t` on((`sr`.`temperament_id` = `t`.`id`))) left join `report_conditions` `rc` on((`sr`.`condition_id` = `rc`.`id`))) left join `urgency_levels` `ul` on((`sr`.`urgency_level_id` = `ul`.`id`))) left join `adopters` `a` on((`sr`.`reporter_id` = `a`.`id`))) left join `stray_report_colors` `src` on((`sr`.`id` = `src`.`stray_report_id`))) left join `colors` `c` on((`src`.`color_id` = `c`.`id`))) GROUP BY `sr`.`id` ;
 
 -- --------------------------------------------------------
 
@@ -968,7 +977,8 @@ ALTER TABLE `stray_reports`
   ADD KEY `idx_location` (`latitude`,`longitude`),
   ADD KEY `idx_urgency` (`urgency_level_id`),
   ADD KEY `idx_condition` (`condition_id`),
-  ADD KEY `idx_assigned_to` (`assigned_to`);
+  ADD KEY `idx_assigned_to` (`assigned_to`),
+  ADD KEY `idx_assigned_by` (`assigned_by`);
 
 --
 -- Indices de la tabla `stray_report_colors`
@@ -1022,25 +1032,25 @@ ALTER TABLE `zones`
 -- AUTO_INCREMENT de la tabla `adopters`
 --
 ALTER TABLE `adopters`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT de la tabla `breeds`
 --
 ALTER TABLE `breeds`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2863;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5484;
 
 --
 -- AUTO_INCREMENT de la tabla `colors`
 --
 ALTER TABLE `colors`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1182;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2249;
 
 --
 -- AUTO_INCREMENT de la tabla `employee_code_counters`
 --
 ALTER TABLE `employee_code_counters`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
 
 --
 -- AUTO_INCREMENT de la tabla `medical_histories`
@@ -1058,7 +1068,7 @@ ALTER TABLE `pets`
 -- AUTO_INCREMENT de la tabla `pet_colors`
 --
 ALTER TABLE `pet_colors`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT de la tabla `pet_documents`
@@ -1070,7 +1080,7 @@ ALTER TABLE `pet_documents`
 -- AUTO_INCREMENT de la tabla `pet_health_records`
 --
 ALTER TABLE `pet_health_records`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=92;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=170;
 
 --
 -- AUTO_INCREMENT de la tabla `pet_payments`
@@ -1088,7 +1098,7 @@ ALTER TABLE `pet_vaccinations`
 -- AUTO_INCREMENT de la tabla `report_conditions`
 --
 ALTER TABLE `report_conditions`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=257;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=488;
 
 --
 -- AUTO_INCREMENT de la tabla `roles`
@@ -1100,31 +1110,31 @@ ALTER TABLE `roles`
 -- AUTO_INCREMENT de la tabla `sizes`
 --
 ALTER TABLE `sizes`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=257;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=488;
 
 --
 -- AUTO_INCREMENT de la tabla `stray_reports`
 --
 ALTER TABLE `stray_reports`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT de la tabla `stray_report_colors`
 --
 ALTER TABLE `stray_report_colors`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
 
 --
 -- AUTO_INCREMENT de la tabla `temperaments`
 --
 ALTER TABLE `temperaments`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=514;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=973;
 
 --
 -- AUTO_INCREMENT de la tabla `urgency_levels`
 --
 ALTER TABLE `urgency_levels`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=341;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=648;
 
 --
 -- AUTO_INCREMENT de la tabla `user_audit_log`
@@ -1194,6 +1204,7 @@ ALTER TABLE `pet_vaccinations`
 --
 ALTER TABLE `stray_reports`
   ADD CONSTRAINT `fk_stray_reports_assigned` FOREIGN KEY (`assigned_to`) REFERENCES `adopters` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `fk_stray_reports_assigned_by` FOREIGN KEY (`assigned_by`) REFERENCES `adopters` (`id`) ON DELETE SET NULL,
   ADD CONSTRAINT `stray_reports_ibfk_1` FOREIGN KEY (`reporter_id`) REFERENCES `adopters` (`id`) ON DELETE SET NULL,
   ADD CONSTRAINT `stray_reports_ibfk_2` FOREIGN KEY (`breed_id`) REFERENCES `breeds` (`id`) ON DELETE SET NULL,
   ADD CONSTRAINT `stray_reports_ibfk_3` FOREIGN KEY (`size_id`) REFERENCES `sizes` (`id`) ON DELETE SET NULL,
