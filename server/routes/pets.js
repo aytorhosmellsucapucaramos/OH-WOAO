@@ -52,7 +52,8 @@ const uploadMultiple = upload.fields([
   { name: 'photoSide', maxCount: 1 },
   { name: 'dniPhoto', maxCount: 1 },
   { name: 'vaccinationCard', maxCount: 1 },
-  { name: 'rabiesVaccineCard', maxCount: 1 }
+  { name: 'rabiesVaccineCard', maxCount: 1 },
+  { name: 'voucherPhoto', maxCount: 1 }
 ]);
 
 /**

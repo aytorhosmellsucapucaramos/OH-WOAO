@@ -19,9 +19,49 @@ const Navbar = () => {
     const token = localStorage.getItem('authToken')
     if (token) {
       setIsLoggedIn(true)
-      // Obtener nombre completo usando la función helper
-      const fullName = getUserFullName()
-      setUserName(fullName)
+      
+      // Verificar si el usuario tiene first_name, si no, actualizar desde el servidor
+      const checkAndUpdateUser = async () => {
+        try {
+          const userStr = localStorage.getItem('user');
+          if (userStr) {
+            const user = JSON.parse(userStr);
+            
+            // Si el usuario no tiene first_name, obtener datos actualizados del servidor
+            if (!user.first_name && !user.firstName) {
+              console.log('⚠️ Usuario sin first_name, actualizando desde servidor...');
+              const response = await fetch('/api/auth/me', {
+                headers: {
+                  'Authorization': `Bearer ${token}`
+                }
+              });
+              
+              if (response.ok) {
+                const data = await response.json();
+                if (data.user) {
+                  // Actualizar localStorage con datos completos
+                  localStorage.setItem('user', JSON.stringify(data.user));
+                  const fullName = `${data.user.first_name || ''} ${data.user.last_name || ''}`.trim();
+                  localStorage.setItem('userFullName', fullName || 'Usuario');
+                  setUserName(fullName || 'Usuario');
+                  console.log('✅ Usuario actualizado con éxito');
+                  return;
+                }
+              }
+            }
+            
+            // Si ya tiene first_name, usar el nombre existente
+            const fullName = getUserFullName();
+            setUserName(fullName);
+          }
+        } catch (error) {
+          console.error('Error al verificar usuario:', error);
+          const fullName = getUserFullName();
+          setUserName(fullName);
+        }
+      };
+      
+      checkAndUpdateUser();
     } else {
       setIsLoggedIn(false)
       setUserName('')
@@ -218,7 +258,22 @@ const Navbar = () => {
                       fontSize: '1rem',
                     }}
                   >
-                    {userName.charAt(0).toUpperCase()}
+                    {(() => {
+                      try {
+                        const userStr = localStorage.getItem('user');
+                        if (userStr) {
+                          const user = JSON.parse(userStr);
+                          // Intentar obtener first_name (snake_case) o firstName (camelCase)
+                          const firstName = user.first_name || user.firstName;
+                          if (firstName && firstName.length > 0) {
+                            return firstName.charAt(0).toUpperCase();
+                          }
+                        }
+                      } catch (e) {
+                        console.error('Error loading user initial:', e);
+                      }
+                      return 'U';
+                    })()}
                   </Avatar>
                 </IconButton>
               </>

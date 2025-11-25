@@ -105,12 +105,14 @@ router.get('/stray-reports', async (req, res) => {
         assigned_user.last_name as assigned_last_name,
         assigned_user.employee_code as assigned_employee_code,
         assigned_user.email as assigned_email,
+        breeds.name as breed,
         sizes.name as size_name,
         temperaments.name as temperament_name
       FROM stray_reports sr
       JOIN stray_report_status_types st ON sr.status_type_id = st.id
       LEFT JOIN adopters reporter ON sr.reporter_id = reporter.id
       LEFT JOIN adopters assigned_user ON sr.assigned_to = assigned_user.id
+      LEFT JOIN breeds breeds ON sr.breed_id = breeds.id
       LEFT JOIN sizes sizes ON sr.size_id = sizes.id
       LEFT JOIN temperaments temperaments ON sr.temperament_id = temperaments.id
       ORDER BY st.display_order ASC, sr.created_at DESC
@@ -606,6 +608,87 @@ router.get('/stats', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error al obtener estadísticas',
+      error: error.message
+    });
+  }
+});
+
+// GET /api/admin/pets/dangerous - Get dangerous pets with payment info
+router.get('/pets/dangerous', async (req, res) => {
+  console.log('🔧 ENDPOINT /api/admin/pets/dangerous LLAMADO');
+  
+  const { pool } = require('../config/database');
+  
+  try {
+    // Obtener mascotas de razas potencialmente peligrosas con información de pago
+    const [dangerousPets] = await pool.query(`
+      SELECT 
+        p.id,
+        p.cui,
+        p.pet_name,
+        p.age,
+        p.created_at,
+        b.name as breed,
+        a.first_name as owner_first_name,
+        a.last_name as owner_last_name,
+        a.dni as owner_dni,
+        pp.receipt_number,
+        pp.receipt_amount,
+        pp.voucher_photo_path,
+        pp.voucher_viewed,
+        pp.created_at as payment_date
+      FROM pets p
+      JOIN breeds b ON p.breed_id = b.id
+      JOIN adopters a ON p.adopter_id = a.id
+      LEFT JOIN pet_payments pp ON p.id = pp.pet_id
+      WHERE b.description LIKE '%potencialmente peligrosa%' 
+         OR b.description LIKE '%Requiere pago%'
+      ORDER BY p.created_at DESC
+    `);
+
+    console.log('🔧 Mascotas peligrosas encontradas:', dangerousPets.length);
+
+    res.json({
+      success: true,
+      data: dangerousPets,
+      total: dangerousPets.length
+    });
+  } catch (error) {
+    console.error('🔧 ERROR en /api/admin/pets/dangerous:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener mascotas potencialmente peligrosas',
+      error: error.message
+    });
+  }
+});
+
+// PUT /api/admin/pets/dangerous/:petId/voucher-viewed - Mark voucher as viewed
+router.put('/pets/dangerous/:petId/voucher-viewed', async (req, res) => {
+  console.log('🔧 ENDPOINT /api/admin/pets/dangerous/:petId/voucher-viewed LLAMADO');
+  
+  const { pool } = require('../config/database');
+  const { petId } = req.params;
+  
+  try {
+    // Actualizar el campo voucher_viewed en pet_payments
+    await pool.query(`
+      UPDATE pet_payments 
+      SET voucher_viewed = 1 
+      WHERE pet_id = ?
+    `, [petId]);
+
+    console.log(`✅ Voucher marcado como visto para pet_id: ${petId}`);
+
+    res.json({
+      success: true,
+      message: 'Voucher marcado como visto'
+    });
+  } catch (error) {
+    console.error('🔧 ERROR al marcar voucher como visto:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al marcar voucher como visto',
       error: error.message
     });
   }

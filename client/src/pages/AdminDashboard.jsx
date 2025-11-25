@@ -66,6 +66,7 @@ import UserManagement from '../components/admin/UserManagement'
 import Analytics from '../components/admin/Analytics'
 import MunicipalUsersList from '../components/admin/MunicipalUsersList'
 import StrayReportsManagement from '../components/admin/StrayReportsManagement'
+import DangerousPetsManagement from '../components/admin/DangerousPetsManagement'
 
 const AdminDashboard = () => {
   const navigate = useNavigate()
@@ -1100,7 +1101,7 @@ const AdminDashboard = () => {
         )
 
       case 'assignments':
-        return <StrayReportsManagement />
+        return <DangerousPetsManagement />
 
       case 'reviews':
         return (
@@ -1295,8 +1296,8 @@ const AdminDashboard = () => {
             />
             <TabButton
               id="assignments"
-              label="Asignación"
-              icon={<Assignment />}
+              label="Mascotas Peligrosas"
+              icon={<Warning />}
               isActive={activeTab === 'assignments'}
               onClick={() => setActiveTab('assignments')}
             />

@@ -129,6 +129,7 @@ async function registerPet(petData, files, adopterId) {
     const photoPosteriorPath = files?.photoSide?.[0]?.filename || null;
     const vaccinationCardPath = files?.vaccinationCard?.[0]?.filename || null;
     const rabiesVaccinePath = files?.rabiesVaccineCard?.[0]?.filename || null;
+    const voucherPhotoPath = files?.voucherPhoto?.[0]?.filename || null;
     
     // Insert documents (photos and QR)
     await connection.query(
@@ -160,9 +161,9 @@ async function registerPet(petData, files, adopterId) {
       await connection.query(
         `INSERT INTO pet_payments (
           pet_id, receipt_number, receipt_issue_date,
-          receipt_payer, receipt_amount, payment_type, status
-        ) VALUES (?, ?, ?, ?, ?, 'registration', 'pending')`,
-        [petId, receiptNumber, receiptIssueDate, receiptPayer, receiptAmount]
+          receipt_payer, receipt_amount, voucher_photo_path, payment_type, status
+        ) VALUES (?, ?, ?, ?, ?, ?, 'registration', 'pending')`,
+        [petId, receiptNumber, receiptIssueDate, receiptPayer, receiptAmount, voucherPhotoPath]
       );
     }
     

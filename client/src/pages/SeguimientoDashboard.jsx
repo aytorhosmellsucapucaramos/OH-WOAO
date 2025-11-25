@@ -290,18 +290,7 @@ const SeguimientoDashboard = () => {
             <Typography variant="body1" color="text.secondary">
               Gestiona tus casos asignados de perros callejeros
             </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
-              <Typography variant="caption" color="text.secondary">
-                🔄 Última actualización: {getLastUpdateText()}
-              </Typography>
-              <Chip 
-                label="Auto-actualización: 30s" 
-                size="small" 
-                color="success"
-                variant="outlined"
-                sx={{ height: 20, fontSize: '0.7rem' }}
-              />
-            </Box>
+            
           </Box>
           <Box sx={{ display: 'flex', gap: 2 }}>
             <Button
@@ -561,6 +550,12 @@ const SeguimientoDashboard = () => {
                     
                     console.log(`🔍 [FILTRO] Caso ${caseItem.id}: status='${caseItem.status}', pestaña='${activeTab}', mostrar=${shouldShow}`);
                     return shouldShow;
+                  })
+                  .sort((a, b) => {
+                    // Ordenar por fecha de creación: más antiguos primero (nuevos al final)
+                    const dateA = new Date(a.created_at || a.id);
+                    const dateB = new Date(b.created_at || b.id);
+                    return dateA - dateB;
                   })
                   .map((caseItem, index) => (
                   <Grid item xs={12} md={6} key={caseItem.id}>

@@ -20,6 +20,7 @@ export const registerPet = async (petData) => {
         if (payment.issueDate) formData.append('receiptIssueDate', payment.issueDate);
         if (payment.fullName) formData.append('receiptPayer', payment.fullName);
         if (payment.amountPaid) formData.append('receiptAmount', payment.amountPaid);
+        if (payment.voucherPhoto) formData.append('voucherPhoto', payment.voucherPhoto);
       } else {
         formData.append(key, petData[key]);
       }

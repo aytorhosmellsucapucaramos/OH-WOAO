@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: localhost:3306
--- Tiempo de generación: 12-11-2025 a las 20:45:44
+-- Tiempo de generación: 13-11-2025 a las 03:24:13
 -- Versión del servidor: 8.0.30
 -- Versión de PHP: 8.3.8
 
@@ -534,21 +534,23 @@ CREATE TABLE `stray_reports` (
   `assigned_at` timestamp NULL DEFAULT NULL COMMENT 'Fecha y hora de asignación del reporte',
   `assigned_by` int DEFAULT NULL COMMENT 'ID del usuario que asignó el reporte',
   `status_notes` text COMMENT 'Notas adicionales sobre el estado del reporte',
-  `status_updated_at` timestamp NULL DEFAULT NULL COMMENT 'Fecha y hora de la última actualización de estado'
+  `status_updated_at` timestamp NULL DEFAULT NULL COMMENT 'Fecha y hora de la última actualización de estado',
+  `status_type_id` int NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Reportes de perros callejeros';
 
 --
 -- Volcado de datos para la tabla `stray_reports`
 --
 
-INSERT INTO `stray_reports` (`id`, `reporter_id`, `reporter_name`, `reporter_phone`, `reporter_email`, `latitude`, `longitude`, `address`, `zone`, `breed_id`, `size_id`, `temperament_id`, `condition_id`, `urgency_level_id`, `description`, `photo_path`, `status`, `created_at`, `updated_at`, `assigned_to`, `assigned_at`, `assigned_by`, `status_notes`, `status_updated_at`) VALUES
-(2, 2, 'TONY gambino', NULL, NULL, -15.83772970, -70.03210080, 'av estudiamte', NULL, 5, 2, 5, 1, 3, 'ayuda', '1761888493106-388268421.jpg', 'active', '2025-10-31 05:28:13', '2025-10-31 05:28:13', NULL, NULL, NULL, NULL, NULL),
-(3, 2, 'TONY gambino', NULL, NULL, -15.83679277, -70.02937381, 'jr deza', NULL, 27, 2, 4, 1, 2, 'peli', '1761889810115-324089980.jpg', 'in_progress', '2025-10-31 05:50:10', '2025-11-12 20:24:45', 10, '2025-11-12 20:24:45', 1, NULL, NULL),
-(4, 2, 'TONY gambino', NULL, NULL, -15.83807609, -70.02184426, 'av titicaca', NULL, 8, 2, 3, 2, 2, 'terrible', '1761890917298-595692104.jpg', 'active', '2025-10-31 06:08:37', '2025-11-07 16:55:08', NULL, NULL, NULL, NULL, NULL),
-(5, 2, 'TONY gambino', NULL, NULL, -15.83916380, -70.02846479, 'jr libertad', NULL, 6, 3, 5, 3, 2, 'ayuda peligro andante', '1761949804468-145122062.jpg', 'active', '2025-10-31 22:30:04', '2025-11-07 16:55:04', NULL, NULL, NULL, NULL, NULL),
-(7, 8, 'Tomura Shigaraki', NULL, NULL, -15.84477363, -70.02545493, 'Av. Costanera ', NULL, 8, 3, 3, 3, 1, 'Es un perro 🐕..', '1762380748363-48759213.jpg', 'in_progress', '2025-11-05 22:12:28', '2025-11-12 17:29:12', 6, NULL, NULL, NULL, '2025-11-12 17:29:12'),
-(8, 8, 'Tomura Shigaraki', NULL, NULL, -15.84002476, -70.02849267, 'Jirón Ayacucho, Laykakota, Puno, Puno', NULL, 17, 1, 6, 1, 3, 'Es una perr....', '1762381590411-87722692.jpg', 'in_progress', '2025-11-05 22:26:30', '2025-11-12 20:31:07', 10, '2025-11-12 20:31:07', 1, NULL, '2025-11-12 17:29:26'),
-(9, 2, 'TONY gambino', NULL, NULL, -15.83810442, -70.02405791, 'Jirón Melgar, Laykakota, Puno, Puno', NULL, 1, 2, 2, 2, 2, 'esta muy peligroso', '1762532288343-341687879.jpg', 'in_progress', '2025-11-07 16:18:08', '2025-11-12 20:43:34', 11, '2025-11-12 20:43:34', 1, NULL, '2025-11-12 17:29:30');
+INSERT INTO `stray_reports` (`id`, `reporter_id`, `reporter_name`, `reporter_phone`, `reporter_email`, `latitude`, `longitude`, `address`, `zone`, `breed_id`, `size_id`, `temperament_id`, `condition_id`, `urgency_level_id`, `description`, `photo_path`, `status`, `created_at`, `updated_at`, `assigned_to`, `assigned_at`, `assigned_by`, `status_notes`, `status_updated_at`, `status_type_id`) VALUES
+(2, 2, 'TONY gambino', NULL, NULL, -15.83772970, -70.03210080, 'av estudiamte', NULL, 5, 2, 5, 1, 3, 'ayuda', '1761888493106-388268421.jpg', 'active', '2025-10-31 05:28:13', '2025-11-12 22:07:40', NULL, NULL, NULL, NULL, NULL, 1),
+(3, 2, 'TONY gambino', NULL, NULL, -15.83679277, -70.02937381, 'jr deza', NULL, 27, 2, 4, 1, 2, 'peli', '1761889810115-324089980.jpg', 'in_progress', '2025-10-31 05:50:10', '2025-11-12 22:10:41', 6, '2025-11-12 20:47:00', 1, 'completadisimo', '2025-11-12 22:10:41', 4),
+(4, 2, 'TONY gambino', NULL, NULL, -15.83807609, -70.02184426, 'av titicaca', NULL, 8, 2, 3, 2, 2, 'terrible', '1761890917298-595692104.jpg', 'active', '2025-10-31 06:08:37', '2025-11-12 22:07:40', NULL, NULL, NULL, NULL, NULL, 1),
+(5, 2, 'TONY gambino', NULL, NULL, -15.83916380, -70.02846479, 'jr libertad', NULL, 6, 3, 5, 3, 2, 'ayuda peligro andante', '1761949804468-145122062.jpg', 'active', '2025-10-31 22:30:04', '2025-11-12 22:07:40', NULL, NULL, NULL, NULL, NULL, 1),
+(7, 8, 'Tomura Shigaraki', NULL, NULL, -15.84477363, -70.02545493, 'Av. Costanera ', NULL, 8, 3, 3, 3, 1, 'Es un perro 🐕..', '1762380748363-48759213.jpg', 'in_progress', '2025-11-05 22:12:28', '2025-11-12 22:19:30', 6, '2025-11-12 22:19:30', 1, NULL, '2025-11-12 17:29:12', 2),
+(8, 8, 'Tomura Shigaraki', NULL, NULL, -15.84002476, -70.02849267, 'Jirón Ayacucho, Laykakota, Puno, Puno', NULL, 17, 1, 6, 1, 3, 'Es una perr....', '1762381590411-87722692.jpg', 'in_progress', '2025-11-05 22:26:30', '2025-11-12 22:20:42', 6, '2025-11-12 22:20:42', 1, 'arreglasdo\n', '2025-11-12 21:27:03', 2),
+(9, 2, 'TONY gambino', NULL, NULL, -15.83810442, -70.02405791, 'Jirón Melgar, Laykakota, Puno, Puno', NULL, 1, 2, 2, 2, 2, 'esta muy peligroso', '1762532288343-341687879.jpg', 'in_progress', '2025-11-07 16:18:08', '2025-11-12 22:20:34', 6, '2025-11-12 22:20:34', 1, NULL, '2025-11-12 17:29:30', 2),
+(10, 2, 'TONY gambino', NULL, NULL, -15.83804959, -70.02186150, 'Titicaca, Laykakota, Puno, Puno', NULL, 8, 2, 5, 1, 1, 'en peligro', '1762998715656-901338098.jpg', 'active', '2025-11-13 01:51:55', '2025-11-13 01:51:55', NULL, NULL, NULL, NULL, NULL, 1);
 
 -- --------------------------------------------------------
 
@@ -578,7 +580,40 @@ INSERT INTO `stray_report_colors` (`id`, `stray_report_id`, `color_id`, `created
 (11, 8, 6, '2025-11-05 22:26:30'),
 (12, 9, 2, '2025-11-07 16:18:08'),
 (13, 9, 1, '2025-11-07 16:18:08'),
-(14, 9, 8, '2025-11-07 16:18:08');
+(14, 9, 8, '2025-11-07 16:18:08'),
+(15, 10, 2, '2025-11-13 01:51:55');
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `stray_report_status_types`
+--
+
+CREATE TABLE `stray_report_status_types` (
+  `id` int NOT NULL,
+  `code` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Código corto del estado (n, a, p, d, r, c)',
+  `name` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Nombre descriptivo del estado',
+  `description` text COLLATE utf8mb4_unicode_ci COMMENT 'Descripción detallada del estado',
+  `color` varchar(7) COLLATE utf8mb4_unicode_ci DEFAULT '#6b7280' COMMENT 'Color hexadecimal para UI',
+  `requires_notes` tinyint(1) DEFAULT '0' COMMENT 'Si requiere notas obligatorias',
+  `is_final` tinyint(1) DEFAULT '0' COMMENT 'Si es un estado final',
+  `display_order` int DEFAULT '0' COMMENT 'Orden de visualización',
+  `is_active` tinyint(1) DEFAULT '1' COMMENT 'Estado activo',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Catálogo de estados para reportes de perros callejeros';
+
+--
+-- Volcado de datos para la tabla `stray_report_status_types`
+--
+
+INSERT INTO `stray_report_status_types` (`id`, `code`, `name`, `description`, `color`, `requires_notes`, `is_final`, `display_order`, `is_active`, `created_at`, `updated_at`) VALUES
+(1, 'n', 'Nuevo', 'Reporte recién creado, pendiente de asignación', '#ef4444', 0, 0, 1, 1, '2025-11-12 22:07:40', '2025-11-12 22:07:40'),
+(2, 'a', 'Asignado', 'Reporte asignado a personal de seguimiento', '#3b82f6', 0, 0, 2, 1, '2025-11-12 22:07:40', '2025-11-12 22:07:40'),
+(3, 'p', 'En Progreso', 'Personal trabajando activamente en el caso', '#8b5cf6', 0, 0, 3, 1, '2025-11-12 22:07:40', '2025-11-12 22:07:40'),
+(4, 'd', 'Completado', 'Caso resuelto satisfactoriamente por seguimiento', '#10b981', 1, 0, 4, 1, '2025-11-12 22:07:40', '2025-11-12 22:07:40'),
+(5, 'r', 'En Revisión', 'Requiere revisión administrativa', '#f59e0b', 1, 0, 5, 1, '2025-11-12 22:07:40', '2025-11-12 22:07:40'),
+(6, 'c', 'Cerrado', 'Caso oficialmente cerrado', '#6b7280', 0, 1, 6, 1, '2025-11-12 22:07:40', '2025-11-12 22:07:40');
 
 -- --------------------------------------------------------
 
@@ -746,6 +781,7 @@ CREATE TABLE `view_stray_reports_complete` (
 ,`assigned_by` int
 ,`status_notes` text
 ,`status_updated_at` timestamp
+,`status_type_id` int
 ,`breed_name` varchar(100)
 ,`size_name` varchar(50)
 ,`size_code` varchar(20)
@@ -827,7 +863,7 @@ CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW 
 --
 DROP TABLE IF EXISTS `view_stray_reports_complete`;
 
-CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `view_stray_reports_complete`  AS SELECT `sr`.`id` AS `id`, `sr`.`reporter_id` AS `reporter_id`, `sr`.`reporter_name` AS `reporter_name`, `sr`.`reporter_phone` AS `reporter_phone`, `sr`.`reporter_email` AS `reporter_email`, `sr`.`latitude` AS `latitude`, `sr`.`longitude` AS `longitude`, `sr`.`address` AS `address`, `sr`.`zone` AS `zone`, `sr`.`breed_id` AS `breed_id`, `sr`.`size_id` AS `size_id`, `sr`.`temperament_id` AS `temperament_id`, `sr`.`condition_id` AS `condition_id`, `sr`.`urgency_level_id` AS `urgency_level_id`, `sr`.`description` AS `description`, `sr`.`photo_path` AS `photo_path`, `sr`.`status` AS `status`, `sr`.`created_at` AS `created_at`, `sr`.`updated_at` AS `updated_at`, `sr`.`assigned_to` AS `assigned_to`, `sr`.`assigned_at` AS `assigned_at`, `sr`.`assigned_by` AS `assigned_by`, `sr`.`status_notes` AS `status_notes`, `sr`.`status_updated_at` AS `status_updated_at`, `b`.`name` AS `breed_name`, `s`.`name` AS `size_name`, `s`.`code` AS `size_code`, `t`.`name` AS `temperament_name`, `t`.`code` AS `temperament_code`, `t`.`color` AS `temperament_color`, `rc`.`name` AS `condition_name`, `rc`.`code` AS `condition_code`, `ul`.`name` AS `urgency_name`, `ul`.`code` AS `urgency_code`, `ul`.`color` AS `urgency_color`, `ul`.`priority` AS `urgency_priority`, `a`.`first_name` AS `reporter_first_name`, `a`.`last_name` AS `reporter_last_name`, `a`.`phone` AS `reporter_phone_from_user`, `a`.`email` AS `reporter_email_from_user`, group_concat(`c`.`name` separator ', ') AS `colors` FROM ((((((((`stray_reports` `sr` left join `breeds` `b` on((`sr`.`breed_id` = `b`.`id`))) left join `sizes` `s` on((`sr`.`size_id` = `s`.`id`))) left join `temperaments` `t` on((`sr`.`temperament_id` = `t`.`id`))) left join `report_conditions` `rc` on((`sr`.`condition_id` = `rc`.`id`))) left join `urgency_levels` `ul` on((`sr`.`urgency_level_id` = `ul`.`id`))) left join `adopters` `a` on((`sr`.`reporter_id` = `a`.`id`))) left join `stray_report_colors` `src` on((`sr`.`id` = `src`.`stray_report_id`))) left join `colors` `c` on((`src`.`color_id` = `c`.`id`))) GROUP BY `sr`.`id` ;
+CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `view_stray_reports_complete`  AS SELECT `sr`.`id` AS `id`, `sr`.`reporter_id` AS `reporter_id`, `sr`.`reporter_name` AS `reporter_name`, `sr`.`reporter_phone` AS `reporter_phone`, `sr`.`reporter_email` AS `reporter_email`, `sr`.`latitude` AS `latitude`, `sr`.`longitude` AS `longitude`, `sr`.`address` AS `address`, `sr`.`zone` AS `zone`, `sr`.`breed_id` AS `breed_id`, `sr`.`size_id` AS `size_id`, `sr`.`temperament_id` AS `temperament_id`, `sr`.`condition_id` AS `condition_id`, `sr`.`urgency_level_id` AS `urgency_level_id`, `sr`.`description` AS `description`, `sr`.`photo_path` AS `photo_path`, `sr`.`status` AS `status`, `sr`.`created_at` AS `created_at`, `sr`.`updated_at` AS `updated_at`, `sr`.`assigned_to` AS `assigned_to`, `sr`.`assigned_at` AS `assigned_at`, `sr`.`assigned_by` AS `assigned_by`, `sr`.`status_notes` AS `status_notes`, `sr`.`status_updated_at` AS `status_updated_at`, `sr`.`status_type_id` AS `status_type_id`, `b`.`name` AS `breed_name`, `s`.`name` AS `size_name`, `s`.`code` AS `size_code`, `t`.`name` AS `temperament_name`, `t`.`code` AS `temperament_code`, `t`.`color` AS `temperament_color`, `rc`.`name` AS `condition_name`, `rc`.`code` AS `condition_code`, `ul`.`name` AS `urgency_name`, `ul`.`code` AS `urgency_code`, `ul`.`color` AS `urgency_color`, `ul`.`priority` AS `urgency_priority`, `a`.`first_name` AS `reporter_first_name`, `a`.`last_name` AS `reporter_last_name`, `a`.`phone` AS `reporter_phone_from_user`, `a`.`email` AS `reporter_email_from_user`, group_concat(`c`.`name` separator ', ') AS `colors` FROM ((((((((`stray_reports` `sr` left join `breeds` `b` on((`sr`.`breed_id` = `b`.`id`))) left join `sizes` `s` on((`sr`.`size_id` = `s`.`id`))) left join `temperaments` `t` on((`sr`.`temperament_id` = `t`.`id`))) left join `report_conditions` `rc` on((`sr`.`condition_id` = `rc`.`id`))) left join `urgency_levels` `ul` on((`sr`.`urgency_level_id` = `ul`.`id`))) left join `adopters` `a` on((`sr`.`reporter_id` = `a`.`id`))) left join `stray_report_colors` `src` on((`sr`.`id` = `src`.`stray_report_id`))) left join `colors` `c` on((`src`.`color_id` = `c`.`id`))) GROUP BY `sr`.`id` ;
 
 -- --------------------------------------------------------
 
@@ -978,7 +1014,9 @@ ALTER TABLE `stray_reports`
   ADD KEY `idx_urgency` (`urgency_level_id`),
   ADD KEY `idx_condition` (`condition_id`),
   ADD KEY `idx_assigned_to` (`assigned_to`),
-  ADD KEY `idx_assigned_by` (`assigned_by`);
+  ADD KEY `idx_assigned_by` (`assigned_by`),
+  ADD KEY `idx_stray_reports_status_type` (`status_type_id`),
+  ADD KEY `idx_stray_reports_assigned_status` (`assigned_to`,`status_type_id`);
 
 --
 -- Indices de la tabla `stray_report_colors`
@@ -988,6 +1026,14 @@ ALTER TABLE `stray_report_colors`
   ADD UNIQUE KEY `unique_report_color` (`stray_report_id`,`color_id`),
   ADD KEY `idx_report` (`stray_report_id`),
   ADD KEY `idx_color` (`color_id`);
+
+--
+-- Indices de la tabla `stray_report_status_types`
+--
+ALTER TABLE `stray_report_status_types`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uk_status_code` (`code`),
+  ADD UNIQUE KEY `uk_status_name` (`name`);
 
 --
 -- Indices de la tabla `temperaments`
@@ -1038,13 +1084,13 @@ ALTER TABLE `adopters`
 -- AUTO_INCREMENT de la tabla `breeds`
 --
 ALTER TABLE `breeds`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5484;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6572;
 
 --
 -- AUTO_INCREMENT de la tabla `colors`
 --
 ALTER TABLE `colors`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2249;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2697;
 
 --
 -- AUTO_INCREMENT de la tabla `employee_code_counters`
@@ -1080,7 +1126,7 @@ ALTER TABLE `pet_documents`
 -- AUTO_INCREMENT de la tabla `pet_health_records`
 --
 ALTER TABLE `pet_health_records`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=170;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=202;
 
 --
 -- AUTO_INCREMENT de la tabla `pet_payments`
@@ -1098,7 +1144,7 @@ ALTER TABLE `pet_vaccinations`
 -- AUTO_INCREMENT de la tabla `report_conditions`
 --
 ALTER TABLE `report_conditions`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=488;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=584;
 
 --
 -- AUTO_INCREMENT de la tabla `roles`
@@ -1110,31 +1156,37 @@ ALTER TABLE `roles`
 -- AUTO_INCREMENT de la tabla `sizes`
 --
 ALTER TABLE `sizes`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=488;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=584;
 
 --
 -- AUTO_INCREMENT de la tabla `stray_reports`
 --
 ALTER TABLE `stray_reports`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT de la tabla `stray_report_colors`
 --
 ALTER TABLE `stray_report_colors`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
+
+--
+-- AUTO_INCREMENT de la tabla `stray_report_status_types`
+--
+ALTER TABLE `stray_report_status_types`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT de la tabla `temperaments`
 --
 ALTER TABLE `temperaments`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=973;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1165;
 
 --
 -- AUTO_INCREMENT de la tabla `urgency_levels`
 --
 ALTER TABLE `urgency_levels`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=648;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=776;
 
 --
 -- AUTO_INCREMENT de la tabla `user_audit_log`
@@ -1205,6 +1257,7 @@ ALTER TABLE `pet_vaccinations`
 ALTER TABLE `stray_reports`
   ADD CONSTRAINT `fk_stray_reports_assigned` FOREIGN KEY (`assigned_to`) REFERENCES `adopters` (`id`) ON DELETE SET NULL,
   ADD CONSTRAINT `fk_stray_reports_assigned_by` FOREIGN KEY (`assigned_by`) REFERENCES `adopters` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `fk_stray_reports_status_type` FOREIGN KEY (`status_type_id`) REFERENCES `stray_report_status_types` (`id`),
   ADD CONSTRAINT `stray_reports_ibfk_1` FOREIGN KEY (`reporter_id`) REFERENCES `adopters` (`id`) ON DELETE SET NULL,
   ADD CONSTRAINT `stray_reports_ibfk_2` FOREIGN KEY (`breed_id`) REFERENCES `breeds` (`id`) ON DELETE SET NULL,
   ADD CONSTRAINT `stray_reports_ibfk_3` FOREIGN KEY (`size_id`) REFERENCES `sizes` (`id`) ON DELETE SET NULL,

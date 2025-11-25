@@ -6,6 +6,7 @@ import {
 } from '@mui/icons-material'
 import axios from 'axios'
 import * as XLSX from 'xlsx'
+import { getApiUrl, getUploadUrl } from '../../utils/urls'
 
 const PetManagement = () => {
   const [pets, setPets] = useState([])
@@ -69,7 +70,7 @@ const PetManagement = () => {
 
   const fetchPets = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/admin/pets')
+      const response = await axios.get(getApiUrl('/admin/pets'))
       const petsData = response.data.data || [];
 
       // LOG TEMPORAL para diagnóstico
@@ -129,7 +130,7 @@ const PetManagement = () => {
   const handleDelete = async (petId) => {
     if (window.confirm('¿Estás seguro de que quieres eliminar esta mascota?')) {
       try {
-        await axios.delete(`http://localhost:5000/api/admin/pets/${petId}`)
+        await axios.delete(getApiUrl(`/admin/pets/${petId}`))
         fetchPets()
       } catch (error) {
         console.error('Error deleting pet:', error)
@@ -139,7 +140,7 @@ const PetManagement = () => {
 
   const handleToggleCardStatus = async (petId, currentStatus) => {
     try {
-      await axios.put(`http://localhost:5000/api/admin/pets/${petId}/card-status`, {
+      await axios.put(getApiUrl(`/admin/pets/${petId}/card-status`), {
         card_printed: !currentStatus
       })
       fetchPets()
@@ -289,7 +290,7 @@ const PetManagement = () => {
         <div className="flex-shrink-0">
           {pet.photo_frontal_path ? (
             <img
-              src={`http://localhost:5000/api/uploads/${pet.photo_frontal_path}`}
+              src={getUploadUrl(pet.photo_frontal_path)}
               alt={pet.pet_name}
               className="w-24 h-24 object-cover rounded-lg border-2 border-slate-200 shadow-sm"
               onError={(e) => {
@@ -384,7 +385,7 @@ const PetManagement = () => {
             <div>
               {pet.photo_frontal_path ? (
                 <img
-                  src={`http://localhost:5000/api/uploads/${pet.photo_frontal_path}`}
+                  src={getUploadUrl(pet.photo_frontal_path)}
                   alt={pet.photo_frontal_path}
                   className="w-full h-80 object-cover rounded-xl shadow-lg"
                   onError={(e) => {

@@ -26,6 +26,7 @@ const ReportFormBasic = ({ formData, onUpdate, errors }) => {
   const [photoPreview, setPhotoPreview] = useState(null);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [stream, setStream] = useState(null);
+  const [videoReady, setVideoReady] = useState(false);
   const videoRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -72,17 +73,52 @@ const ReportFormBasic = ({ formData, onUpdate, errors }) => {
   // Abrir cámara
   const openCamera = async () => {
     try {
+      // Verificar si el navegador soporta getUserMedia
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert(
+          '⚠️ La cámara no está disponible.\n\n' +
+          'Para usar la cámara, debes acceder a la aplicación desde:\n' +
+          '• https:// (conexión segura), o\n' +
+          '• http://localhost:3000\n\n' +
+          'Actualmente estás en: ' + window.location.origin + '\n\n' +
+          'Puedes usar "Subir desde Galería" como alternativa.'
+        );
+        return;
+      }
+
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
       });
       setStream(mediaStream);
+      setVideoReady(false);
       setCameraOpen(true);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-      }
+      
+      // Esperar a que el video esté completamente cargado
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = mediaStream;
+          videoRef.current.onloadedmetadata = () => {
+            console.log('✅ Video listo:', videoRef.current.videoWidth, 'x', videoRef.current.videoHeight);
+            setVideoReady(true);
+          };
+        }
+      }, 100);
     } catch (error) {
       console.error('Error accessing camera:', error);
-      alert('No se pudo acceder a la cámara. Verifica los permisos.');
+      
+      let errorMessage = 'No se pudo acceder a la cámara.\n\n';
+      
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        errorMessage += '❌ Permiso denegado. Por favor permite el acceso a la cámara en tu navegador.';
+      } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+        errorMessage += '❌ No se encontró ninguna cámara en tu dispositivo.';
+      } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
+        errorMessage += '❌ La cámara está siendo usada por otra aplicación.';
+      } else {
+        errorMessage += '❌ Error: ' + error.message + '\n\nPuedes usar "Subir desde Galería" como alternativa.';
+      }
+      
+      alert(errorMessage);
     }
   };
 
@@ -92,14 +128,15 @@ const ReportFormBasic = ({ formData, onUpdate, errors }) => {
       stream.getTracks().forEach(track => track.stop());
       setStream(null);
     }
+    setVideoReady(false);
     setCameraOpen(false);
   };
 
   // Capturar foto
   const capturePhoto = () => {
     const video = videoRef.current;
-    if (!video || video.videoWidth === 0) {
-      alert('La cámara aún no está lista. Espera un momento.');
+    if (!video || !videoReady || video.videoWidth === 0 || video.readyState < 2) {
+      alert('La cámara aún no está lista. Espera un momento e intenta nuevamente.');
       return;
     }
     
@@ -238,14 +275,17 @@ const ReportFormBasic = ({ formData, onUpdate, errors }) => {
               />
             )}
             renderTags={(value, getTagProps) =>
-              value.map((option, index) => (
-                <Chip
-                  key={option.id}
-                  label={option.name}
-                  size="small"
-                  {...getTagProps({ index })}
-                />
-              ))
+              value.map((option, index) => {
+                const { key, ...tagProps } = getTagProps({ index });
+                return (
+                  <Chip
+                    key={key}
+                    label={option.name}
+                    size="small"
+                    {...tagProps}
+                  />
+                );
+              })
             }
           />
         </Grid>
@@ -476,10 +516,26 @@ const ReportFormBasic = ({ formData, onUpdate, errors }) => {
                 display: 'block',
                 minHeight: '300px'
               }}
-              onLoadedMetadata={() => {
-                console.log('Video listo:', videoRef.current?.videoWidth, 'x', videoRef.current?.videoHeight);
-              }}
             />
+            {!videoReady && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 2
+                }}
+              >
+                <CircularProgress sx={{ color: 'white' }} />
+                <Typography sx={{ color: 'white', fontWeight: 600 }}>
+                  Iniciando cámara...
+                </Typography>
+              </Box>
+            )}
             <IconButton
               onClick={closeCamera}
               sx={{
@@ -501,15 +557,18 @@ const ReportFormBasic = ({ formData, onUpdate, errors }) => {
           </Button>
             <Button 
               variant="contained" 
-              startIcon={<PhotoCamera />}
+              startIcon={videoReady ? <PhotoCamera /> : <CircularProgress size={20} sx={{ color: 'white' }} />}
               onClick={capturePhoto}
+              disabled={!videoReady}
               sx={{
-                background: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)',
+                background: videoReady 
+                  ? 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)'
+                  : 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)',
                 color: 'white',
                 fontWeight: 600
               }}
             >
-              Capturar Foto
+              {videoReady ? 'Capturar Foto' : 'Esperando cámara...'}
             </Button>
         </DialogActions>
       </Dialog>

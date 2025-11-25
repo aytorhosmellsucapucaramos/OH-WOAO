@@ -466,8 +466,11 @@ router.put(
   }
 );
 
-// Update pet information
-router.put("/pet/:id", verifyToken, async (req, res) => {
+// Update pet vaccination cards
+router.put("/pet/:id", verifyToken, upload.fields([
+  { name: 'vaccinationCard', maxCount: 1 },
+  { name: 'rabiesVaccineCard', maxCount: 1 }
+]), async (req, res) => {
   let connection;
 
   try {
@@ -475,14 +478,8 @@ router.put("/pet/:id", verifyToken, async (req, res) => {
 
     const { id } = req.params;
     const {
-      pet_name,
-      sex,
-      breed,
-      age,
-      color,
-      size,
-      additional_features,
-      medical_history,
+      hasVaccinationCard,
+      hasRabiesVaccine
     } = req.body;
 
     // Verify pet belongs to user
@@ -498,38 +495,74 @@ router.put("/pet/:id", verifyToken, async (req, res) => {
       });
     }
 
-    // Update usando subconsultas para IDs de catálogos
-    await connection.query(
-      `UPDATE pets 
-       SET pet_name = ?, sex = ?, 
-           breed_id = (SELECT id FROM breeds WHERE name = ? LIMIT 1), 
-           age = ?, 
-           color_id = (SELECT id FROM colors WHERE name = ? LIMIT 1),
-           size_id = (SELECT id FROM sizes WHERE code = ? LIMIT 1),
-           additional_features = ?, medical_history = ?
-       WHERE id = ?`,
-      [
-        pet_name,
-        sex,
-        breed,
-        age,
-        color,
-        size,
-        additional_features,
-        medical_history,
-        id,
-      ]
+    // Get file paths if uploaded
+    const vaccinationCardPath = req.files?.vaccinationCard?.[0]?.filename || null;
+    const rabiesVaccinePath = req.files?.rabiesVaccineCard?.[0]?.filename || null;
+
+    // Check if health record exists
+    const [existingHealthRecord] = await connection.query(
+      'SELECT id FROM pet_health_records WHERE pet_id = ?',
+      [id]
     );
+
+    if (existingHealthRecord.length === 0) {
+      // Create health record if it doesn't exist
+      await connection.query(
+        'INSERT INTO pet_health_records (pet_id) VALUES (?)',
+        [id]
+      );
+    }
+
+    // Build update query dynamically based on what's provided
+    const updateFields = [];
+    const updateValues = [];
+
+    // Handle vaccination card status
+    if (hasVaccinationCard !== undefined) {
+      const hasVaccCard = hasVaccinationCard === 'si' || hasVaccinationCard === 'yes' || 
+                         hasVaccinationCard === true || hasVaccinationCard === 'true';
+      updateFields.push('has_vaccination_card = ?');
+      updateValues.push(hasVaccCard);
+    }
+
+    // Handle vaccination card file
+    if (vaccinationCardPath) {
+      updateFields.push('vaccination_card_path = ?');
+      updateValues.push(vaccinationCardPath);
+    }
+
+    // Handle rabies vaccine status
+    if (hasRabiesVaccine !== undefined) {
+      const hasRabiesVac = hasRabiesVaccine === 'si' || hasRabiesVaccine === 'yes' || 
+                          hasRabiesVaccine === true || hasRabiesVaccine === 'true';
+      updateFields.push('has_rabies_vaccine = ?');
+      updateValues.push(hasRabiesVac);
+    }
+
+    // Handle rabies vaccine file
+    if (rabiesVaccinePath) {
+      updateFields.push('rabies_vaccine_path = ?');
+      updateValues.push(rabiesVaccinePath);
+    }
+
+    // Only update if there are fields to update
+    if (updateFields.length > 0) {
+      updateValues.push(id);
+      await connection.query(
+        `UPDATE pet_health_records SET ${updateFields.join(', ')} WHERE pet_id = ?`,
+        updateValues
+      );
+    }
 
     res.json({
       success: true,
-      message: "Información de mascota actualizada",
+      message: "Carnets de vacunación actualizados",
     });
   } catch (error) {
-    console.error("❌ Error al actualizar mascota:", error);
+    console.error("❌ Error al actualizar carnets:", error);
     res.status(500).json({
       success: false,
-      error: "Error al actualizar mascota",
+      error: "Error al actualizar carnets de vacunación",
     });
   } finally {
     if (connection) connection.release();

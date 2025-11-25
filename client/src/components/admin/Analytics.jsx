@@ -5,6 +5,7 @@ import {
   Assessment, Refresh
 } from '@mui/icons-material'
 import axios from 'axios'
+import { getApiUrl } from '../../utils/urls'
 
 const Analytics = () => {
   const [analytics, setAnalytics] = useState(null)
@@ -18,8 +19,8 @@ const Analytics = () => {
   const fetchAnalytics = async () => {
     try {
       const [analyticsRes, statsRes] = await Promise.all([
-        axios.get('http://localhost:5000/api/admin/analytics'),
-        axios.get('http://localhost:5000/api/admin/stats')
+        axios.get(getApiUrl('/admin/analytics')),
+        axios.get(getApiUrl('/admin/stats'))
       ])
       
       setAnalytics(analyticsRes.data.analytics)

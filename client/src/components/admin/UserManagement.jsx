@@ -5,6 +5,7 @@ import {
   Pets as PetsIcon, Report, CalendarToday, FilterList
 } from '@mui/icons-material'
 import axios from 'axios'
+import { getApiUrl } from '../../utils/urls'
 
 const UserManagement = () => {
   const [users, setUsers] = useState([])
@@ -23,7 +24,13 @@ const UserManagement = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/admin/users')
+      const token = localStorage.getItem('authToken') || localStorage.getItem('token')
+      const response = await axios.get(getApiUrl('/admin/users'), {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
       setUsers(response.data.data || [])
     } catch (error) {
       console.error('Error fetching users:', error)
@@ -60,7 +67,13 @@ const UserManagement = () => {
     if (!window.confirm('¿Estás seguro de eliminar este usuario? Se eliminarán también todas sus mascotas.')) return
     
     try {
-      await axios.delete(`http://localhost:5000/api/admin/users/${userId}`)
+      const token = localStorage.getItem('authToken') || localStorage.getItem('token')
+      await axios.delete(getApiUrl(`/admin/users/${userId}`), {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
       fetchUsers()
     } catch (error) {
       console.error('Error deleting user:', error)
@@ -80,7 +93,7 @@ const UserManagement = () => {
           <div className="relative">
             {user.photo_path ? (
               <img
-                src={`http://localhost:5000/api/uploads/${user.photo_path}`}
+                src={getApiUrl(`/uploads/${user.photo_path}`)}
                 alt={user.first_name}
                 className="w-20 h-20 rounded-full object-cover border-4 border-orange-200"
               />
@@ -185,7 +198,7 @@ const UserManagement = () => {
             <div className="flex items-center space-x-4">
               {user.photo_path ? (
                 <img
-                  src={`http://localhost:5000/api/uploads/${user.photo_path}`}
+                  src={getApiUrl(`/uploads/${user.photo_path}`)}
                   alt={user.first_name}
                   className="w-24 h-24 rounded-full object-cover border-4 border-orange-200"
                 />

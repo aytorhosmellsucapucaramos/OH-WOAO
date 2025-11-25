@@ -40,7 +40,7 @@ async function initializeDatabase() {
     await connection.query(`USE ${process.env.DB_NAME || 'pets_db'}`);
     
     // Read and execute the V3 init SQL file with support for stored routines
-    const initSQL = fs.readFileSync(path.join(__dirname, '../database/database_complete.sql'), 'utf8');
+    const initSQL = fs.readFileSync(path.join(__dirname, '../database/pets_db.sql'), 'utf8');
 
     // Build statements safely: handle CREATE PROCEDURE/FUNCTION/TRIGGER blocks
     const lines = initSQL.split(/\r?\n/);

@@ -28,6 +28,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { getApiUrl } from '../../utils/urls';
 
 const CreateMunicipalUser = () => {
   const navigate = useNavigate();
@@ -59,26 +60,71 @@ const CreateMunicipalUser = () => {
     try {
       const token = localStorage.getItem('authToken') || localStorage.getItem('token');
       
+      if (!token) {
+        setMessage({ 
+          type: 'error', 
+          text: 'No se encontró token de autorización. Por favor inicia sesión nuevamente.' 
+        });
+        return;
+      }
+
+      // Verificar si el servidor está disponible
+      console.log('🔍 [CreateMunicipalUser] Intentando cargar catálogos...');
+      
       // Obtener roles (excluyendo 'user')
       const rolesResponse = await axios.get(
-        'http://localhost:5000/api/admin/users/catalog/roles?exclude=user',
-        { headers: { 'Authorization': `Bearer ${token}` } }
+        getApiUrl('/admin/users/catalog/roles?exclude=user'),
+        { 
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 10000 // 10 segundos de timeout
+        }
       );
+      
+      console.log('✅ [CreateMunicipalUser] Roles cargados:', rolesResponse.data);
       setRoles(rolesResponse.data.data || []);
 
       // Obtener zonas
       const zonesResponse = await axios.get(
-        'http://localhost:5000/api/admin/users/catalog/zones',
-        { headers: { 'Authorization': `Bearer ${token}` } }
+        getApiUrl('/admin/users/catalog/zones'),
+        { 
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 10000 // 10 segundos de timeout
+        }
       );
+      
+      console.log('✅ [CreateMunicipalUser] Zonas cargadas:', zonesResponse.data);
       setZones(zonesResponse.data.data || []);
 
     } catch (error) {
-      console.error('Error loading catalogs:', error);
-      setMessage({ 
-        type: 'error', 
-        text: 'Error al cargar los catálogos. Por favor recarga la página.' 
-      });
+      console.error('❌ [CreateMunicipalUser] Error loading catalogs:', error);
+      
+      if (error.code === 'ERR_BLOCKED_BY_CLIENT') {
+        setMessage({ 
+          type: 'error', 
+          text: '🚫 Solicitud bloqueada por el navegador. Verifica:\n• Desactiva extensiones (ad-blockers)\n• Verifica que el servidor esté corriendo en localhost:5000\n• Refresca la página' 
+        });
+      } else if (error.code === 'ERR_NETWORK') {
+        setMessage({ 
+          type: 'error', 
+          text: '🌐 Error de red. Verifica que el servidor backend esté ejecutándose en localhost:5000' 
+        });
+      } else if (error.code === 'ECONNABORTED') {
+        setMessage({ 
+          type: 'error', 
+          text: '⏱️ Timeout: El servidor no responde. Verifica la conexión.' 
+        });
+      } else {
+        setMessage({ 
+          type: 'error', 
+          text: `Error al cargar catálogos: ${error.message || 'Error desconocido'}` 
+        });
+      }
     }
   };
 
@@ -135,12 +181,14 @@ const CreateMunicipalUser = () => {
       const token = localStorage.getItem('authToken') || localStorage.getItem('token');
 
       const response = await axios.post(
-        'http://localhost:5000/api/admin/users/create',
+        getApiUrl('/admin/users/create'),
         formData,
         {
           headers: {
-            'Authorization': `Bearer ${token}`
-          }
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 10000
         }
       );
 
@@ -191,7 +239,22 @@ const CreateMunicipalUser = () => {
           </Box>
 
           {message.text && (
-            <Alert severity={message.type} sx={{ mb: 3 }}>
+            <Alert 
+              severity={message.type} 
+              sx={{ mb: 3 }}
+              action={
+                message.type === 'error' && (roles.length === 0 || zones.length === 0) ? (
+                  <Button 
+                    color="inherit" 
+                    size="small" 
+                    onClick={fetchCatalogs}
+                    disabled={loading}
+                  >
+                    Reintentar
+                  </Button>
+                ) : null
+              }
+            >
               {message.text}
             </Alert>
           )}
@@ -339,6 +402,9 @@ const CreateMunicipalUser = () => {
                   value={formData.role_id}
                   onChange={handleChange('role_id')}
                   required
+                  disabled={roles.length === 0}
+                  helperText={roles.length === 0 ? "⚠️ No se pudieron cargar los roles. Usa el botón 'Reintentar' arriba." : ""}
+                  error={roles.length === 0}
                 >
                   {roles.map(role => (
                     <MenuItem key={role.id} value={role.id}>
@@ -357,7 +423,9 @@ const CreateMunicipalUser = () => {
                     value={formData.assigned_zone}
                     onChange={handleChange('assigned_zone')}
                     required
-                    helperText="Requerido para Personal de Seguimiento"
+                    disabled={zones.length === 0}
+                    helperText={zones.length === 0 ? "⚠️ No se pudieron cargar las zonas. Usa el botón 'Reintentar' arriba." : "Requerido para Personal de Seguimiento"}
+                    error={zones.length === 0}
                   >
                     <MenuItem value="">
                       <em>Seleccionar zona...</em>
@@ -383,7 +451,7 @@ const CreateMunicipalUser = () => {
               <Button
                 type="submit"
                 variant="contained"
-                disabled={loading}
+                disabled={loading || roles.length === 0}
                 sx={{
                   backgroundColor: '#428cef',
                   '&:hover': { backgroundColor: '#3a7ad1' }

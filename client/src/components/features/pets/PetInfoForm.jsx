@@ -8,9 +8,9 @@ import {
   Grid, TextField, FormControl, InputLabel, Select, MenuItem,
   Typography, Box, RadioGroup, FormControlLabel, Radio, Dialog,
   DialogTitle, DialogContent, DialogActions, Button, Alert, CircularProgress,
-  Autocomplete, InputAdornment
+  Autocomplete, InputAdornment, Paper, IconButton
 } from '@mui/material';
-import { Pets, Straighten, Palette, Cake, Schedule } from '@mui/icons-material';
+import { Pets, Straighten, Palette, Cake, Schedule, PhotoCamera, Delete } from '@mui/icons-material';
 import { getAllCatalogs } from '../../../services/catalogService';
 
 // Razas peligrosas que requieren pago de S/.52.20
@@ -53,6 +53,8 @@ const PetInfoForm = ({ formData, onUpdate, errors }) => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showOtherBreed, setShowOtherBreed] = useState(false);
   const [showOtherColor, setShowOtherColor] = useState(false);
+  const [voucherPhoto, setVoucherPhoto] = useState(null);
+  const [voucherPhotoPreview, setVoucherPhotoPreview] = useState(null);
   const [paymentData, setPaymentData] = useState({
     receiptNumber: '',
     issueDate: '',
@@ -129,10 +131,43 @@ const PetInfoForm = ({ formData, onUpdate, errors }) => {
       fullName: '',
       amountPaid: '52.20'
     });
+    
+    // Limpiar foto del voucher
+    setVoucherPhoto(null);
+    setVoucherPhotoPreview(null);
   };
 
   const handlePaymentDataChange = (field, value) => {
     setPaymentData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleVoucherPhotoChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      // Validar que sea una imagen
+      if (!file.type.startsWith('image/')) {
+        alert('Por favor seleccione un archivo de imagen válido');
+        return;
+      }
+      
+      // Validar tamaño (máximo 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('La imagen no puede ser mayor a 5MB');
+        return;
+      }
+      
+      setVoucherPhoto(file);
+      
+      // Crear preview
+      const reader = new FileReader();
+      reader.onload = (e) => setVoucherPhotoPreview(e.target.result);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveVoucherPhoto = () => {
+    setVoucherPhoto(null);
+    setVoucherPhotoPreview(null);
   };
 
   const handleSavePayment = () => {
@@ -149,7 +184,13 @@ const PetInfoForm = ({ formData, onUpdate, errors }) => {
       return;
     }
     
-    onUpdate('paymentData', paymentData);
+    // Validar que se haya subido la foto del voucher
+    if (!voucherPhoto) {
+      alert('Por favor adjunte una foto del voucher/recibo de pago');
+      return;
+    }
+    
+    onUpdate('paymentData', { ...paymentData, voucherPhoto });
     setShowPaymentModal(false);
   };
 
@@ -672,6 +713,99 @@ const PetInfoForm = ({ formData, onUpdate, errors }) => {
                 required
                 helperText="Nombre o razón social registrado en el recibo de pago"
               />
+            </Grid>
+
+            {/* Sección para subir foto del voucher */}
+            <Grid item xs={12}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, mt: 2, mb: 2, color: '#1976d2' }}>
+                📸 Foto del Voucher/Recibo *
+              </Typography>
+              
+              {!voucherPhotoPreview ? (
+                <Paper 
+                  elevation={2} 
+                  sx={{ 
+                    p: 3, 
+                    textAlign: 'center', 
+                    backgroundColor: '#f8f9fa',
+                    border: '2px dashed #ccc',
+                    borderRadius: 2,
+                    cursor: 'pointer',
+                    '&:hover': {
+                      backgroundColor: '#e3f2fd',
+                      borderColor: '#1976d2'
+                    }
+                  }}
+                  onClick={() => document.getElementById('voucher-photo-input').click()}
+                >
+                  <PhotoCamera sx={{ fontSize: 48, color: '#666', mb: 1 }} />
+                  <Typography variant="h6" color="textSecondary" gutterBottom>
+                    Adjuntar Foto del Voucher
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary">
+                    Haz clic aquí para subir una foto clara del recibo de pago
+                  </Typography>
+                  <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
+                    Formatos: JPG, PNG | Máximo 5MB
+                  </Typography>
+                  <input
+                    id="voucher-photo-input"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    type="file"
+                    onChange={handleVoucherPhotoChange}
+                  />
+                </Paper>
+              ) : (
+                <Paper elevation={3} sx={{ p: 2, borderRadius: 2 }}>
+                  <Box sx={{ position: 'relative', textAlign: 'center' }}>
+                    <Box
+                      component="img"
+                      src={voucherPhotoPreview}
+                      alt="Voucher Preview"
+                      sx={{
+                        width: '100%',
+                        maxHeight: 300,
+                        objectFit: 'contain',
+                        borderRadius: 1,
+                        border: '2px solid #4caf50'
+                      }}
+                    />
+                    <IconButton
+                      onClick={handleRemoveVoucherPhoto}
+                      sx={{
+                        position: 'absolute',
+                        top: 8,
+                        right: 8,
+                        bgcolor: 'rgba(244, 67, 54, 0.8)',
+                        color: 'white',
+                        '&:hover': {
+                          bgcolor: 'rgba(244, 67, 54, 1)'
+                        }
+                      }}
+                    >
+                      <Delete />
+                    </IconButton>
+                  </Box>
+                  <Typography variant="body2" sx={{ mt: 1, color: '#4caf50', fontWeight: 600 }}>
+                    ✅ Foto del voucher adjuntada correctamente
+                  </Typography>
+                  <Button
+                    startIcon={<PhotoCamera />}
+                    onClick={() => document.getElementById('voucher-photo-input').click()}
+                    sx={{ mt: 1 }}
+                  >
+                    Cambiar Foto
+                  </Button>
+                  <input
+                    id="voucher-photo-input"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    type="file"
+                    onChange={handleVoucherPhotoChange}
+                  />
+                </Paper>
+              )}
             </Grid>
           </Grid>
         </DialogContent>

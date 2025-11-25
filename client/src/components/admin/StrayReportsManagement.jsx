@@ -40,7 +40,12 @@ import {
   Schedule,
   Close,
   AssignmentInd,
-  Map
+  Map,
+  Pets,
+  Warning,
+  Receipt,
+  Visibility,
+  GetApp
 } from '@mui/icons-material';
 import axios from 'axios';
 import { getApiUrl } from '../../utils/urls';
@@ -53,12 +58,15 @@ import {
 } from '../../services/strayReportService';
 
 const StrayReportsManagement = () => {
-  const [tabValue, setTabValue] = useState(0); // 0: Todos los reportes, 1: Mis asignados
+  const [tabValue, setTabValue] = useState(0); // 0: Todos los reportes, 1: Mis asignados, 2: Mascotas Peligrosas
   const [reports, setReports] = useState([]);
   const [assignedReports, setAssignedReports] = useState([]);
+  const [dangerousPets, setDangerousPets] = useState([]);
   const [filteredReports, setFilteredReports] = useState([]);
+  const [filteredDangerousPets, setFilteredDangerousPets] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadingDangerous, setLoadingDangerous] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
 
   // Pagination
@@ -97,8 +105,17 @@ const StrayReportsManagement = () => {
   }, []);
 
   useEffect(() => {
+    if (tabValue === 2) {
+      fetchDangerousPets();
+    }
+  }, [tabValue]);
+
+  useEffect(() => {
     filterReports();
-  }, [searchTerm, reports, tabValue]);
+    if (tabValue === 2) {
+      filterDangerousPets();
+    }
+  }, [searchTerm, reports, tabValue, dangerousPets]);
 
   const fetchReports = async () => {
     try {
@@ -158,6 +175,31 @@ const StrayReportsManagement = () => {
     }
   };
 
+  const fetchDangerousPets = async () => {
+    setLoadingDangerous(true);
+    try {
+      const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+      const response = await axios.get(
+        getApiUrl('/admin/pets/dangerous'),
+        { 
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          } 
+        }
+      );
+      setDangerousPets(response.data.data || []);
+    } catch (error) {
+      console.error('Error fetching dangerous pets:', error);
+      setMessage({ 
+        type: 'error', 
+        text: 'Error al cargar mascotas potencialmente peligrosas' 
+      });
+    } finally {
+      setLoadingDangerous(false);
+    }
+  };
+
   const filterReports = () => {
     const currentReports = tabValue === 0 ? reports : assignedReports;
 
@@ -182,11 +224,36 @@ const StrayReportsManagement = () => {
     setFilteredReports(filtered);
   };
 
+  const filterDangerousPets = () => {
+    if (!searchTerm) {
+      setFilteredDangerousPets(dangerousPets);
+      return;
+    }
+
+    const term = searchTerm.toLowerCase();
+    const filtered = dangerousPets.filter(pet => {
+      const petName = `${pet.pet_name || ''}`.toLowerCase();
+      const ownerName = `${pet.owner_first_name || ''} ${pet.owner_last_name || ''}`.toLowerCase();
+      const breed = `${pet.breed || ''}`.toLowerCase();
+      const cui = `${pet.cui || ''}`.toLowerCase();
+
+      return (
+        petName.includes(term) ||
+        ownerName.includes(term) ||
+        breed.includes(term) ||
+        cui.includes(term)
+      );
+    });
+    setFilteredDangerousPets(filtered);
+  };
+
   // Pagination
-  const totalPages = Math.ceil(filteredReports.length / itemsPerPage);
+  const currentData = tabValue === 2 ? filteredDangerousPets : filteredReports;
+  const totalPages = Math.ceil(currentData.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentReports = filteredReports.slice(startIndex, endIndex);
+  const currentReports = tabValue === 2 ? [] : filteredReports.slice(startIndex, endIndex);
+  const currentPets = tabValue === 2 ? currentData.slice(startIndex, endIndex) : [];
 
   // Reset page when filters change
   useEffect(() => {
@@ -354,10 +421,13 @@ const StrayReportsManagement = () => {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <div>
           <Typography variant="h5" fontWeight="600">
-            Gestión de Reportes de Perros Callejeros
+            {tabValue === 2 ? '🐕 Mascotas Potencialmente Peligrosas' : 'Gestión de Reportes de Perros Callejeros'}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            {filteredReports.length} reporte{filteredReports.length !== 1 ? 's' : ''} encontrado{filteredReports.length !== 1 ? 's' : ''}
+            {tabValue === 2 
+              ? `${filteredDangerousPets.length} mascota${filteredDangerousPets.length !== 1 ? 's' : ''} potencialmente peligrosa${filteredDangerousPets.length !== 1 ? 's' : ''}`
+              : `${filteredReports.length} reporte${filteredReports.length !== 1 ? 's' : ''} encontrado${filteredReports.length !== 1 ? 's' : ''}`
+            }
           </Typography>
         </div>
       </Box>
@@ -371,13 +441,18 @@ const StrayReportsManagement = () => {
       <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)} sx={{ mb: 3 }}>
         <Tab label="Todos los Reportes" />
         <Tab label={`Mis Asignados (${assignedReports.length})`} />
+        <Tab 
+          label={`Mascotas Peligrosas (${dangerousPets.length})`} 
+          icon={<Pets />} 
+          iconPosition="start"
+        />
       </Tabs>
 
       <Card>
         <CardContent>
           <TextField
             fullWidth
-            placeholder="Buscar por reportante, dirección, zona o descripción..."
+            placeholder={tabValue === 2 ? "Buscar por nombre de mascota, propietario, raza o CUI..." : "Buscar por reportante, dirección, zona o descripción..."}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             sx={{ mb: 3 }}
@@ -390,127 +465,256 @@ const StrayReportsManagement = () => {
             }}
           />
 
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell><strong>Reportante</strong></TableCell>
-                  <TableCell><strong>Ubicación</strong></TableCell>
-                  <TableCell><strong>Estado</strong></TableCell>
-                  <TableCell><strong>Urgencia</strong></TableCell>
-                  <TableCell><strong>Asignado a</strong></TableCell>
-                  <TableCell><strong>Fecha</strong></TableCell>
-                  <TableCell><strong>Acciones</strong></TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {currentReports.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} align="center">
-                      <Typography color="text.secondary">
-                        {tabValue === 0 ? 'No se encontraron reportes' : 'No tienes reportes asignados'}
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  currentReports.map((report) => (
-                    <TableRow key={report.id}>
-                      <TableCell>
-                        <Box>
-                          <Typography variant="body2" fontWeight="600">
-                            {report.reporter_name || 'Anónimo'}
+          {tabValue === 2 ? (
+            // Mostrar mascotas potencialmente peligrosas
+            loadingDangerous ? (
+              <Box sx={{ textAlign: 'center', py: 4 }}>
+                <Typography>Cargando mascotas potencialmente peligrosas...</Typography>
+              </Box>
+            ) : (
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell><strong>Mascota</strong></TableCell>
+                      <TableCell><strong>Propietario</strong></TableCell>
+                      <TableCell><strong>Raza</strong></TableCell>
+                      <TableCell><strong>Pago</strong></TableCell>
+                      <TableCell><strong>Voucher</strong></TableCell>
+                      <TableCell><strong>CUI</strong></TableCell>
+                      <TableCell><strong>Acciones</strong></TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {currentPets.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} align="center">
+                          <Typography color="text.secondary">
+                            No se encontraron mascotas potencialmente peligrosas
                           </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            <Phone sx={{ fontSize: 12, mr: 0.5 }} />
-                            {report.reporter_phone || 'Sin teléfono'}
-                          </Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Box>
-                          <Typography variant="body2">
-                            <LocationOn sx={{ fontSize: 14, mr: 0.5 }} />
-                            {report.address || 'Sin dirección'}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            Zona: {report.zone || 'N/A'}
-                          </Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell>{getStatusChip(report.status)}</TableCell>
-                      <TableCell>{getUrgencyChip(report.urgency)}</TableCell>
-                      <TableCell>
-                        {report.assigned_first_name ? (
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Avatar sx={{ width: 24, height: 24, mr: 1 }}>
-                              <Person sx={{ fontSize: 14 }} />
-                            </Avatar>
-                            <Typography variant="body2">
-                              {report.assigned_first_name} {report.assigned_last_name}
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      currentPets.map((pet) => (
+                        <TableRow key={pet.id}>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                              <Box
+                                sx={{
+                                  width: 40,
+                                  height: 40,
+                                  borderRadius: '50%',
+                                  backgroundColor: '#ff5722',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: 'white'
+                                }}
+                              >
+                                <Warning />
+                              </Box>
+                              <Box>
+                                <Typography variant="body2" fontWeight="600">
+                                  {pet.pet_name}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  {pet.age} {pet.age === 1 ? 'mes' : 'meses'}
+                                </Typography>
+                              </Box>
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            <Box>
+                              <Typography variant="body2" fontWeight="600">
+                                {pet.owner_first_name} {pet.owner_last_name}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                DNI: {pet.owner_dni}
+                              </Typography>
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={pet.breed} 
+                              color="warning" 
+                              size="small"
+                              icon={<Pets />}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Box>
+                              <Typography variant="body2" fontWeight="600">
+                                S/ {pet.receipt_amount || '52.20'}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                Recibo: {pet.receipt_number}
+                              </Typography>
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            {pet.voucher_photo_path ? (
+                              <Tooltip title="Ver voucher">
+                                <IconButton
+                                  size="small"
+                                  color="primary"
+                                  onClick={() => window.open(`http://localhost:5000/api/uploads/${pet.voucher_photo_path}`, '_blank')}
+                                >
+                                  <Receipt />
+                                </IconButton>
+                              </Tooltip>
+                            ) : (
+                              <Typography variant="caption" color="text.secondary">
+                                Sin voucher
+                              </Typography>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight="600">
+                              {pet.cui}
                             </Typography>
-                          </Box>
-                        ) : (
-                          <Typography variant="body2" color="text.secondary">
-                            No asignado
-                          </Typography>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">
-                          {new Date(report.created_at).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell>
+                            <Tooltip title="Ver carnet">
+                              <IconButton
+                                size="small"
+                                color="primary"
+                                onClick={() => window.open(`/pet/${pet.cui}`, '_blank')}
+                              >
+                                <Visibility />
+                              </IconButton>
+                            </Tooltip>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )
+          ) : (
+            // Mostrar reportes normales
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell><strong>Reportante</strong></TableCell>
+                    <TableCell><strong>Ubicación</strong></TableCell>
+                    <TableCell><strong>Estado</strong></TableCell>
+                    <TableCell><strong>Urgencia</strong></TableCell>
+                    <TableCell><strong>Asignado a</strong></TableCell>
+                    <TableCell><strong>Fecha</strong></TableCell>
+                    <TableCell><strong>Acciones</strong></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {currentReports.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} align="center">
+                        <Typography color="text.secondary">
+                          {tabValue === 0 ? 'No se encontraron reportes' : 'No tienes reportes asignados'}
                         </Typography>
-                        {report.assigned_at && (
-                          <Typography variant="caption" color="text.secondary">
-                            Asignado: {new Date(report.assigned_at).toLocaleDateString()}
-                          </Typography>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {canAssign && !report.assigned_to && (
-                          <Tooltip title="Asignar reporte">
-                            <IconButton
-                              size="small"
-                              color="primary"
-                              onClick={() => openAssignDialog(report)}
-                            >
-                              <AssignmentInd />
-                            </IconButton>
-                          </Tooltip>
-                        )}
-                        {canAssign && report.assigned_to && (
-                          <Tooltip title="Desasignar reporte">
-                            <IconButton
-                              size="small"
-                              color="warning"
-                              onClick={() => handleUnassign(report.id)}
-                            >
-                              <AssignmentTurnedIn />
-                            </IconButton>
-                          </Tooltip>
-                        )}
-                        {canUpdateStatus && (
-                          <Tooltip title="Actualizar estado">
-                            <IconButton
-                              size="small"
-                              color="success"
-                              onClick={() => openStatusDialog(report)}
-                            >
-                              <CheckCircle />
-                            </IconButton>
-                          </Tooltip>
-                        )}
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                  ) : (
+                    currentReports.map((report) => (
+                      <TableRow key={report.id}>
+                        <TableCell>
+                          <Box>
+                            <Typography variant="body2" fontWeight="600">
+                              {report.reporter_name || 'Anónimo'}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              <Phone sx={{ fontSize: 12, mr: 0.5 }} />
+                              {report.reporter_phone || 'Sin teléfono'}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Box>
+                            <Typography variant="body2">
+                              <LocationOn sx={{ fontSize: 14, mr: 0.5 }} />
+                              {report.address || 'Sin dirección'}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Zona: {report.zone || 'N/A'}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell>{getStatusChip(report.status)}</TableCell>
+                        <TableCell>{getUrgencyChip(report.urgency)}</TableCell>
+                        <TableCell>
+                          {report.assigned_first_name ? (
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <Avatar sx={{ width: 24, height: 24, mr: 1 }}>
+                                <Person sx={{ fontSize: 14 }} />
+                              </Avatar>
+                              <Typography variant="body2">
+                                {report.assigned_first_name} {report.assigned_last_name}
+                              </Typography>
+                            </Box>
+                          ) : (
+                            <Typography variant="body2" color="text.secondary">
+                              No asignado
+                            </Typography>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {new Date(report.created_at).toLocaleDateString()}
+                          </Typography>
+                          {report.assigned_at && (
+                            <Typography variant="caption" color="text.secondary">
+                              Asignado: {new Date(report.assigned_at).toLocaleDateString()}
+                            </Typography>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {canAssign && !report.assigned_to && (
+                            <Tooltip title="Asignar reporte">
+                              <IconButton
+                                size="small"
+                                color="primary"
+                                onClick={() => openAssignDialog(report)}
+                              >
+                                <AssignmentInd />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                          {canAssign && report.assigned_to && (
+                            <Tooltip title="Desasignar reporte">
+                              <IconButton
+                                size="small"
+                                color="warning"
+                                onClick={() => handleUnassign(report.id)}
+                              >
+                                <AssignmentTurnedIn />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                          {canUpdateStatus && (
+                            <Tooltip title="Actualizar estado">
+                              <IconButton
+                                size="small"
+                                color="success"
+                                onClick={() => openStatusDialog(report)}
+                              >
+                                <CheckCircle />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
         </CardContent>
       </Card>
 
       {/* Pagination */}
-      {filteredReports.length > 0 && (
+      {currentData.length > 0 && (
         <Box sx={{ mt: 3, p: 2, bgcolor: 'white', borderRadius: 2, border: 1, borderColor: 'grey.200' }}>
           <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -529,7 +733,7 @@ const StrayReportsManagement = () => {
                 <MenuItem value={25}>25</MenuItem>
               </TextField>
               <Typography variant="body2" color="text.secondary">
-                de {filteredReports.length} reporte{filteredReports.length !== 1 ? 's' : ''}
+                de {currentData.length} {tabValue === 2 ? 'mascota' : 'reporte'}{currentData.length !== 1 ? 's' : ''}
               </Typography>
             </Box>
 

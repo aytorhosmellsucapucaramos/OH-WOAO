@@ -237,15 +237,6 @@ const ReportStrayPage = () => {
           >
             Ayuda a un perro en situación de calle reportando su ubicación
           </Typography>
-
-          {!formData.reporterName && (
-            <Alert
-              severity="warning"
-              sx={{ mt: 3, maxWidth: '600px', mx: 'auto' }}
-            >
-              Por favor, inicia sesión para reportar un perro callejero
-            </Alert>
-          )}
         </Box>
 
         {/* Success Alert */}
